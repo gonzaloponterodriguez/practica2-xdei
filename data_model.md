@@ -559,6 +559,49 @@ Estas cifras forman la base del dataset inicial para los siguientes issues de ba
 
 ---
 
+## 13. Flujo de Notificaciones Servidor-Cliente (Issue #3)
+
+**Cambios en Orion detectados por suscripciones:**
+
+1. **Product price change**:
+   - Entity: `Product`
+   - Atributo monitoreado: `price`
+   - Evento emitido: `product_price_changed`
+   - Payload Socket.IO: `{entityId, entityType, productName, newPrice, timestamp}`
+
+2. **Low stock alert**:
+   - Entity: `InventoryItem`
+   - Atributo monitoreado: `stock` o `shelfStock`
+   - Condición: valor < 5 (crítico)
+   - Evento emitido: `stock_alert`
+   - Payload Socket.IO: `{entityId, entityType, currentStock, shelfStock, timestamp}`
+
+**Webhooks registrados:**
+
+- URL destino: `http://host.docker.internal:5000/webhooks/notifications`
+- Método: POST
+- Content-Type: application/json
+- Payload esperado: NGSIv2 subscription notification (array de entities)
+
+**Eventos Socket.IO servidor → cliente:**
+
+| Evento | Contexto | Frecuencia |
+|--------|----------|-----------|
+| `connection_established` | Al conectar cliente | 1x por conexión |
+| `product_price_changed` | Cambio precio en Orion | On-demand |
+| `stock_alert` | Stock < 5 en InventoryItem | On-demand |
+| `server_status` | Respuesta a request `get_status` | On-demand |
+| `pong` | Respuesta a `ping` de cliente | Every 30s |
+
+**Garantías:**
+
+- Auto-reconexión cliente cada 1-5 segundos (máx 10 intentos).
+- Fallback a HTTP polling si WebSocket no disponible.
+- Historial notificaciones en cliente (max 100 últimas).
+- Estados visuales: conectado (verde), desconectado (rojo), alerta (naranja).
+
+---
+
 ## Próximo Paso
 
 Crear **issue en GitHub** con este modelo como base para la primera rama feature de implementación.

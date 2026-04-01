@@ -173,3 +173,15 @@ Sistema de gestión de inventario inteligente basado en FIWARE para múltiples t
 - Entity `Product` ampliada con atributo `color` en formato hexadecimal `#RRGGBB`.
 - Registro de proveedores de contexto para `temperature`/`relativeHumidity` y `tweets` para las 4 tiendas.
 - Alta de 2 suscripciones NGSIv2: cambio de precio y bajo stock hacia `http://host.docker.internal:5000/webhooks/notifications`.
+
+### Issue #3 - Suscripciones y notificaciones servidor-cliente con Flask-SocketIO y Socket.IO (implementado)
+
+- Servidor Flask-SocketIO en puerto 5000 con soporte WebSocket.
+- Webhook `/webhooks/notifications` que recibe eventos de Orion y emite a clientes Socket.IO.
+- Soporte para eventos: `product_price_changed` (cambio de precio) y `stock_alert` (bajo stock <5 unidades).
+- Interfaz minima HTML con panel de notificaciones en tiempo real, conexión status visual, y filtros.
+- Cliente Socket.IO en JavaScript con auto-reconexión, keepalive ping cada 30s, fallback a HTTP polling.
+- Estilos responsivos con gradientes, animaciones de conexión y notificaciones coloreadas por tipo.
+- `requirements.txt` con Flask 2.3, Flask-SocketIO 5.3, Flask-CORS, requests.
+- `README.md` completo con instrucciones, validación end-to-end, troubleshooting y ejemplos.
+- Validación: webhook acepta eventos de Orion, emite a navegador, reconexión automática funcional.

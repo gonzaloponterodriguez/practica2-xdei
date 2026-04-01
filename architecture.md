@@ -390,3 +390,42 @@ Implementado en la rama `feature/modelo-datos-ampliado`:
 - 16 `Shelf` (4 por tienda) y 64 `InventoryItem` (>=4 por estanteria).
 - 2 registros de proveedores de contexto (`weather/humidity` y `tweets`) para las 4 tiendas.
 - 2 suscripciones NGSIv2 con callback a `host.docker.internal`.
+
+---
+
+## 11. Estado de Implementación del Issue #3
+
+Implementado en la rama `feature/notifications-socketio`:
+
+- **Servidor Flask-SocketIO** (`app.py` ~250 líneas):
+  - Escucha en puerto 5000 con WebSocket + HTTP polling fallback.
+  - Endpoint `/webhooks/notifications` (POST) recibe eventos NGSIv2 de Orion.
+  - Mapeo de eventos: `Product.price` → `product_price_changed`, `InventoryItem.stock<5` → `stock_alert`.
+  - Emite a todos los clientes conectados Socket.IO.
+  - Eventos Socket.IO servidor: `connection_established`, `product_price_changed`, `stock_alert`, `server_status`, `pong`.
+
+- **Cliente Socket.IO** (`static/js/socket-client.js` ~180 líneas):
+  - Conexión automática al servidor con auto-reconexión (1-5s, max 10 intentos).
+  - Keepalive ping cada 30 segundos.
+  - Listeners para eventos del servidor y actualización UI en tiempo real.
+  - Filtrado de notificaciones por tipo (todos/precio/stock).
+  - Manejo de desconexión y UI estado.
+
+- **Frontend minimo** (`templates/index.html` + `static/css/main.css`):
+  - Interfaz responsive con panel de notificaciones.
+  - Indicador visual conexión (verde=conectado, rojo=desconectado).
+  - Estadísticas: clientes conectados, total notificaciones, última actualización.
+  - Notificaciones coloreadas por tipo (amarillo precio, rojo stock).
+  - Estilos gradiente, animaciones, scroll infinito en historial.
+
+- **Documentación** (`README.md` + `requirements.txt`):
+  - Instrucciones instalación, validación, troubleshooting.
+  - Ejemplos curl para disparar eventos manuales.
+  - Estructura de directorios y endpoints.
+  - Tabla de eventos Socket.IO.
+
+- **Validación end-to-end**:
+  - Webhook recibe y procesa eventos de Orion.
+  - Suscripciones NGSIv2 activas apuntando a Flask.
+  - Cambios en Orion generan eventos en navegador.
+  - Cliente reconecta automáticamente tras desconexión.
