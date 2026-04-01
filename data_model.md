@@ -1,0 +1,548 @@
+# Data Model
+## NGSIv2 Entities – Aplicación FIWARE Inventario
+
+**Formato:** NGSI-v2 (Orion Context Broker compatible)
+
+---
+
+## 1. Diagrama UML (Mermaid)
+
+```mermaid
+classDiagram
+    Store "1" -- "4..*" Shelf : contains
+    Store "1" -- "1..*" Employee : employs
+    Store "1" -- "1..*" InventoryItem : manages
+    Shelf "1" -- "1..*" InventoryItem : contains
+    Product "1" -- "1..*" InventoryItem : referenced
+    Employee "1" -- "1" Store : worksIn
+
+    class Employee {
+        +String id
+        +String type
+        +Text name
+        +Text email
+        +DateTime dateOfContract
+        +Text[] skills
+        +Text username
+        +Text password
+        +Relationship refStore
+        +URL image
+    }
+
+    class Store {
+        +String id
+        +String type
+        +Text name
+        +PostalAddress address
+        +geo:json location
+        +Text url
+        +Tel telephone
+        +Text countryCode
+        +Integer capacity
+        +Text description
+        +Float temperature
+        +Float relativeHumidity
+        +Text[] tweets
+        +URL image
+    }
+
+    class Shelf {
+        +String id
+        +String type
+        +Text name
+        +geo:json location
+        +Integer maxCapacity
+        +Relationship refStore
+    }
+
+    class Product {
+        +String id
+        +String type
+        +Text name
+        +Text color
+        +Text size
+        +Integer price
+        +URL image
+    }
+
+    class InventoryItem {
+        +String id
+        +String type
+        +Relationship refStore
+        +Relationship refShelf
+        +Relationship refProduct
+        +Integer stockCount
+        +Integer shelfCount
+    }
+```
+
+---
+
+## 2. Entidades Detalladas
+
+### 2.1 Employee
+
+**Id:** `urn:ngsi-ld:Employee:001` (patrón NGSI-LD compatible)
+
+**Atributos:**
+
+| Atributo | Tipo | Obligatorio | Descripción |
+|----------|------|-------------|-------------|
+| id | String | ✓ | Identificador único |
+| type | String | ✓ | "Employee" (constante) |
+| name | Text | ✓ | Nombre completo |
+| email | Text | ✓ | Email laboral |
+| dateOfContract | DateTime | ✓ | Fecha contratación (ISO 8601) |
+| skills | Array(Text) | ✓ | ['MachineryDriving', 'WritingReports', 'CustomerRelationships'] |
+| username | Text | ✓ | Usuario login |
+| password | Text | ✓ | Contraseña (hash en producc.) |
+| refStore | Relationship | ✓ | Referencia a Store empleado |
+| image | URL | ✗ | URL foto empleado |
+
+**Ejemplo:**
+```json
+{
+  "id": "urn:ngsi-ld:Employee:001",
+  "type": "Employee",
+  "name": {"type": "Text", "value": "Juan García"},
+  "email": {"type": "Text", "value": "juan@store.com"},
+  "dateOfContract": {"type": "DateTime", "value": "2022-03-15T00:00:00Z"},
+  "skills": {"type": "Array", "value": ["MachineryDriving", "CustomerRelationships"]},
+  "username": {"type": "Text", "value": "juan.garcia"},
+  "password": {"type": "Text", "value": "hashed_password"},
+  "refStore": {"type": "Relationship", "value": "urn:ngsi-ld:Store:001"},
+  "image": {"type": "URL", "value": "https://images.unsplash.com/employee1.jpg"}
+}
+```
+
+---
+
+### 2.2 Store
+
+**Id:** `urn:ngsi-ld:Store:001`
+
+**Atributos:**
+
+| Atributo | Tipo | Obligatorio | Descripción |
+|----------|------|-------------|-------------|
+| id | String | ✓ | Identificador único |
+| type | String | ✓ | "Store" (constante) |
+| name | Text | ✓ | Nombre tienda |
+| address | PostalAddress | ✓ | {streetAddress, addressRegion, addressLocality, postalCode} |
+| location | geo:json | ✓ | GeoPoint {type: "Point", coordinates: [lon, lat]} |
+| url | Text | ✗ | URL website tienda |
+| telephone | Tel | ✗ | Teléfono contacto |
+| countryCode | Text | ✓ | Código país ISO 3166-1 alpha-2 (p.ej. "DE") |
+| capacity | Integer | ✓ | Capacidad almacén (m³) |
+| description | Text | ✗ | Descripción general tienda |
+| temperature | Float | ✓ | Temperatura actual (°C) - proveedor contexto |
+| relativeHumidity | Float | ✓ | Humedad relativa (%) - proveedor contexto |
+| tweets | Array(Text) | ✗ | Tweets asociados - proveedor contexto |
+| image | URL | ✗ | Foto almacén |
+
+**Ejemplo:**
+```json
+{
+  "id": "urn:ngsi-ld:Store:001",
+  "type": "Store",
+  "name": {"type": "Text", "value": "Bösebrücke Einkauf"},
+  "address": {"type": "PostalAddress", "value": {
+    "streetAddress": "Bornholmer Straße 65",
+    "addressRegion": "Berlin",
+    "addressLocality": "Prenzlauer Berg",
+    "postalCode": "10439"
+  }},
+  "location": {"type": "geo:json", "value": {
+    "type": "Point",
+    "coordinates": [13.3986, 52.5547]
+  }},
+  "url": {"type": "Text", "value": "https://store1.example.com"},
+  "telephone": {"type": "Tel", "value": "+49 30 1234567"},
+  "countryCode": {"type": "Text", "value": "DE"},
+  "capacity": {"type": "Integer", "value": 5000},
+  "description": {"type": "Text", "value": "Tienda moderna en Berlín"},
+  "temperature": {"type": "Float", "value": 22.5},
+  "relativeHumidity": {"type": "Float", "value": 45.0},
+  "tweets": {"type": "Array", "value": ["Tweet 1", "Tweet 2"]},
+  "image": {"type": "URL", "value": "https://images.unsplash.com/store1.jpg"}
+}
+```
+
+---
+
+### 2.3 Shelf
+
+**Id:** `urn:ngsi-ld:Shelf:unit001`
+
+**Atributos:**
+
+| Atributo | Tipo | Obligatorio | Descripción |
+|----------|------|-------------|-------------|
+| id | String | ✓ | Identificador único |
+| type | String | ✓ | "Shelf" (constante) |
+| name | Text | ✓ | Nombre estantería (p.ej. "Corner Unit") |
+| location | geo:json | ✓ | GeoPoint dentro tienda |
+| maxCapacity | Integer | ✓ | Capacidad máxima items |
+| refStore | Relationship | ✓ | Referencia a Store propietaria |
+
+**Ejemplo:**
+```json
+{
+  "id": "urn:ngsi-ld:Shelf:unit001",
+  "type": "Shelf",
+  "name": {"type": "Text", "value": "Corner Unit"},
+  "location": {"type": "geo:json", "value": {
+    "type": "Point",
+    "coordinates": [13.3986112, 52.554699]
+  }},
+  "maxCapacity": {"type": "Integer", "value": 50},
+  "refStore": {"type": "Relationship", "value": "urn:ngsi-ld:Store:001"}
+}
+```
+
+---
+
+### 2.4 Product
+
+**Id:** `urn:ngsi-ld:Product:001`
+
+**Atributos:**
+
+| Atributo | Tipo | Obligatorio | Descripción |
+|----------|------|-------------|-------------|
+| id | String | ✓ | Identificador único |
+| type | String | ✓ | "Product" (constante) |
+| name | Text | ✓ | Nombre producto |
+| color | Text | ✓ | Color RGB hexadecimal (p.ej. "#FF5733") |
+| size | Text | ✓ | Tamaño (XS, S, M, L, XL) |
+| price | Integer | ✓ | Precio en céntimos (para evitar decimales) |
+| image | URL | ✗ | URL foto producto |
+
+**Ejemplo:**
+```json
+{
+  "id": "urn:ngsi-ld:Product:001",
+  "type": "Product",
+  "name": {"type": "Text", "value": "Apples"},
+  "color": {"type": "Text", "value": "#FF5733"},
+  "size": {"type": "Text", "value": "M"},
+  "price": {"type": "Integer", "value": 99},
+  "image": {"type": "URL", "value": "https://images.unsplash.com/product1.jpg"}
+}
+```
+
+---
+
+### 2.5 InventoryItem
+
+**Id:** `urn:ngsi-ld:InventoryItem:001`
+
+**Atributos:**
+
+| Atributo | Tipo | Obligatorio | Descripción |
+|----------|------|-------------|-------------|
+| id | String | ✓ | Identificador único |
+| type | String | ✓ | "InventoryItem" (constante) |
+| refStore | Relationship | ✓ | Referencia a Store |
+| refShelf | Relationship | ✓ | Referencia a Shelf |
+| refProduct | Relationship | ✓ | Referencia a Product |
+| stockCount | Integer | ✓ | Stock total en tienda |
+| shelfCount | Integer | ✓ | Unidades en esta estantería |
+
+**Ejemplo:**
+```json
+{
+  "id": "urn:ngsi-ld:InventoryItem:001",
+  "type": "InventoryItem",
+  "refStore": {"type": "Relationship", "value": "urn:ngsi-ld:Store:001"},
+  "refShelf": {"type": "Relationship", "value": "urn:ngsi-ld:Shelf:unit001"},
+  "refProduct": {"type": "Relationship", "value": "urn:ngsi-ld:Product:001"},
+  "stockCount": {"type": "Integer", "value": 10000},
+  "shelfCount": {"type": "Integer", "value": 15}
+}
+```
+
+---
+
+## 3. Relaciones Entre Entidades
+
+```
+Store (1) ──contains──► (4..*) Shelf
+Store (1) ──employs──► (1..*) Employee
+Store (1) ──manages──► (1..*) InventoryItem
+
+Shelf (1) ──contains──► (1..*) InventoryItem
+Product (1) ──referenced-by──► (1..*) InventoryItem
+
+Employee (1) ──worksIn──► (1) Store
+```
+
+**Restricciones de Integridad:**
+- Cada Employee refStore debe apuntar a un Store existente
+- Cada Shelf refStore debe apuntar a un Store existente
+- Cada InventoryItem refStore debe apuntar a un Store existente
+- Cada InventoryItem refShelf debe apuntar a un Shelf existente
+- Cada InventoryItem refProduct debe apuntar a un Product existente
+- No puede haber InventoryItem sin asignación a Shelf
+
+---
+
+## 4. Datos Iniciales (seed-data)
+
+### Stores (4)
+| Id | Name | Location | CountryCode | Capacity |
+|----|------|----------|-------------|----------|
+| Store:001 | Bösebrücke Einkauf | [13.3986, 52.5547] | DE | 5000 |
+| Store:002 | Checkpoint Markt | [13.3903, 52.5075] | DE | 7000 |
+| Store:003 | East Side Galleria | [13.4447, 52.5031] | DE | 6000 |
+| Store:004 | Tower Trödelmarkt | [13.4094, 52.5208] | DE | 8000 |
+
+### Employees (4)
+- Juan García (Store:001, MachineryDriving, WritingReports)
+- María López (Store:002, CustomerRelationships)
+- Pedro Martínez (Store:003, WritingReports, MachineryDriving)
+- Ana Rodríguez (Store:004, CustomerRelationships, WritingReports)
+
+### Products (10)
+- Apples (#FF5733, S, 99¢)
+- Bananas (#FFD700, M, 1099¢)
+- Coconuts (#8B4513, M, 1499¢)
+- Melons (#90EE90, XL, 5000¢)
+- Kiwi Fruits (#6B8E23, S, 99¢)
+- Strawberries (#FF1493, S, 99¢)
+- Raspberries (#C72C48, S, 99¢)
+- Pineapples (#FFB90F, L, 299¢)
+- Oranges (#FF8C00, M, 199¢)
+- Grapes (#722F37, M, 249¢)
+
+### Shelves (16 totales: 4 por tienda)
+- Store:001: unit001, unit002, unit003, unit004 (capacidades: 50, 100, 100, 50)
+- Store:002: unit005, unit006, unit007, unit008 (capacidades: 50, 200, 100, 100)
+- Store:003: unit009, unit010, unit011, unit012 (capacidades: 50, 100, 100, 50)
+- Store:004: unit013, unit014, unit015, unit016 (capacidades: 200, 150, 150, 100)
+
+### InventoryItems (mín. 4 productos/estantería = mín. 64 items)
+Distribución ejemplo:
+```
+Store:001 → Shelf:unit001 → Products: 001, 002, 003, 004
+Store:001 → Shelf:unit002 → Products: 001, 005, 006, 007
+Store:001 → Shelf:unit003 → Products: 002, 008, 009, 010
+Store:001 → Shelf:unit004 → Products: 003, 004, 005, 006
+
+(similar para Store:002, 003, 004)
+```
+
+---
+
+## 5. Operaciones NGSIv2 Soportadas
+
+### Crear
+```
+POST /v2/entities
+Content-Type: application/json
+
+{entidad completa en formato NGSIv2}
+```
+
+### Leer
+```
+GET /v2/entities
+GET /v2/entities/{id}
+GET /v2/entities?type=Product
+GET /v2/entities?q=name==Apples
+GET /v2/entities?options=keyValues
+```
+
+### Actualizar
+```
+PATCH /v2/entities/{id}/attrs
+Content-Type: application/json
+
+{"price": {"type": "Integer", "value": 150}}
+
+o con keyValues:
+
+PATCH /v2/entities/{id}/attrs?options=keyValues
+{"price": 150}
+```
+
+### Borrar
+```
+DELETE /v2/entities/{id}
+```
+
+### Notificaciones (Suscripciones)
+```
+POST /v2/subscriptions
+Content-Type: application/json
+
+{...suscripción...}
+
+GET /v2/subscriptions
+DELETE /v2/subscriptions/{id}
+```
+
+---
+
+## 6. Validaciones del Modelo
+
+- **Color**: Formato #RRGGBB válido (regex: `^#[0-9A-F]{6}$`)
+- **CountryCode**: Exactamente 2 caracteres
+- **Price**: Entero positivo > 0
+- **Capacity**: Entero positivo > 0
+- **Temperature**: Float -50 a 50 (°C realista)
+- **RelativeHumidity**: Float 0-100 (%)
+- **Skills**: Array enum ['MachineryDriving', 'WritingReports', 'CustomerRelationships']
+- **Size**: Enum [XS, S, M, L, XL]
+- **Coordinates**: geo:json válido con longitud y latitud
+- **Email**: Formato email válido (RFC 5322)
+- **Username**: Mínimo 3 caracteres, alfanumérico + guion bajo
+- **Password**: Mínimo 8 caracteres
+
+---
+
+## 7. Índices MongoDB (recomendados)
+
+```javascript
+db.entities.createIndex({"_id.type": 1});
+db.entities.createIndex({"_id.id": 1});
+db.entities.createIndex({"_id.servicePath": 1, "_id.id": 1, "_id.type": 1}, {unique: true});
+db.entities.createIndex({"attrs.refStore.md.value": 1});
+db.entities.createIndex({"attrs.price.md.value": 1});
+```
+
+---
+
+## 8. Ejemplo: API REST vs NGSIv2
+
+### Backend REST (Flask normaliza a NGSIv2)
+
+**Request:**
+```json
+POST /api/products
+{
+  "name": "Apple",
+  "color": "#FF5733",
+  "size": "M",
+  "price": 99
+}
+```
+
+**Backend convierte a NGSIv2 y POST a Orion:**
+```json
+POST /v2/entities
+{
+  "id": "urn:ngsi-ld:Product:001",
+  "type": "Product",
+  "name": {"type": "Text", "value": "Apple"},
+  "color": {"type": "Text", "value": "#FF5733"},
+  "size": {"type": "Text", "value": "M"},
+  "price": {"type": "Integer", "value": 99}
+}
+```
+
+**Response:**
+```
+201 Created
+Location: /v2/entities/urn:ngsi-ld:Product:001
+```
+
+---
+
+## 9. Acceso a Relaciones
+
+Cuando se obtiene una entidad, las relaciones están en formato:
+
+```json
+{
+  "id": "urn:ngsi-ld:InventoryItem:001",
+  "type": "InventoryItem",
+  "refProduct": {
+    "type": "Relationship",
+    "value": "urn:ngsi-ld:Product:001",
+    "metadata": {}
+  }
+}
+```
+
+**Para expandir relación (obtener detalles del Product):**
+```
+GET /v2/entities/urn:ngsi-ld:InventoryItem:001?options=expand
+```
+
+O hacer query separada:
+```
+GET /v2/entities/urn:ngsi-ld:Product:001
+```
+
+---
+
+## 10. Cambios de Precio (Suscripción Ejemplo)
+
+**Cuando se actualiza precio:**
+```
+PATCH /v2/entities/urn:ngsi-ld:Product:001/attrs
+{"price": {"type": "Integer", "value": 150}}
+```
+
+**Orion detecta cambio y notifica:**
+```
+POST /webhooks/notifications
+{
+  "subscriptionId": "58c5b4a65e3a07b4ac89ce9d",
+  "data": [{
+    "id": "urn:ngsi-ld:Product:001",
+    "type": "Product",
+    "price": {"type": "Integer", "value": 150, "metadata": {}}
+  }]
+}
+```
+
+**Backend emite Socket.IO:**
+```javascript
+socketio.emit('product_price_changed', {
+  productId: 'urn:ngsi-ld:Product:001',
+  newPrice: 150
+}, broadcast=True)
+```
+
+**Frontend actualiza tablas:**
+```javascript
+updateProductInAllViews('urn:ngsi-ld:Product:001', 150)
+```
+
+---
+
+## 11. Diagrama de Estados (InventoryItem)
+
+```
+┌─────────────────┐
+│  CREADO (0)     │
+└────────┬────────┘
+         │ POST /api/inventory
+         ↓
+┌─────────────────┐
+│  DISPONIBLE     │
+│  (shelfCount>0) │◄──── REABASTECIMIENTO
+└────────┬────────┘      (compra fallida/retry)
+         │
+         │ PATCH .../buy
+         │ (shelfCount-1)
+         ↓
+┌─────────────────┐
+│  BAJO STOCK     │  ← Notificación si < threshold
+│  (shelfCount<5) │
+└────────┬────────┘
+         │
+         │ DELETE/vaciar
+         ↓
+┌─────────────────┐
+│  ELIMINADO      │
+└─────────────────┘
+```
+
+---
+
+## Próximo Paso
+
+Crear **issue en GitHub** con este modelo como base para la primera rama feature de implementación.
