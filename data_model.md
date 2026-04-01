@@ -543,6 +543,22 @@ updateProductInAllViews('urn:ngsi-ld:Product:001', 150)
 
 ---
 
+## 12. Conformidad de Implementación (Issue #1)
+
+Estado validado en `import-data`:
+
+- `Store`: 4 entidades con atributos extendidos requeridos.
+- `Employee`: 4 entidades (1 por tienda) con `email`, `dateOfContract`, `skills`, `username`, `password`.
+- `Product`: 10 entidades con `color` en formato `#RRGGBB`.
+- `Shelf`: 16 entidades (4 por cada tienda).
+- `InventoryItem`: 64 entidades generadas (4 por estanteria).
+- `Registration`: proveedores para `temperature`/`relativeHumidity` y `tweets`.
+- `Subscription`: dos suscripciones NGSIv2 para `price` y `stockCount`.
+
+Estas cifras forman la base del dataset inicial para los siguientes issues de backend y frontend.
+
+---
+
 ## Próximo Paso
 
 Crear **issue en GitHub** con este modelo como base para la primera rama feature de implementación.
