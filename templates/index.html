@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notificaciones Orion - Sistema de Inventario</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <h1>📦 Sistema de Notificaciones - FIWARE Orion</h1>
+            <div class="connection-status">
+                <span id="status-icon" class="status-icon disconnected"></span>
+                <span id="status-text" class="status-text">Desconectado</span>
+            </div>
+        </header>
+
+        <!-- Main Container -->
+        <main class="container">
+            <!-- Stats Panel -->
+            <section class="stats-panel">
+                <div class="stat-card">
+                    <span class="stat-label">Clientes conectados</span>
+                    <span id="client-count" class="stat-value">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Notificaciones recibidas</span>
+                    <span id="notification-count" class="stat-value">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Última actualización</span>
+                    <span id="last-update" class="stat-value">--:--:--</span>
+                </div>
+            </section>
+
+            <!-- Notifications Panel -->
+            <section class="notifications-panel">
+                <h2>📬 Notificaciones en Tiempo Real</h2>
+                
+                <!-- Filters -->
+                <div class="filter-controls">
+                    <button id="filter-all" class="filter-btn active">Todas</button>
+                    <button id="filter-price" class="filter-btn">💲 Cambio Precio</button>
+                    <button id="filter-stock" class="filter-btn">⚠️ Bajo Stock</button>
+                    <button id="clear-notifications" class="filter-btn clear-btn">Limpiar</button>
+                </div>
+
+                <!-- Empty State -->
+                <div id="empty-state" class="empty-state">
+                    <p>Esperando notificaciones de Orion...</p>
+                    <small>Asegúrate de que el servidor está conectado y hay cambios en los datos</small>
+                </div>
+
+                <!-- Notifications List -->
+                <div id="notifications-container" class="notifications-list">
+                    <!-- Notifications will be inserted here -->
+                </div>
+            </section>
+
+            <!-- Debug Info -->
+            <section class="debug-panel">
+                <h3>🔧 Información de Conexión</h3>
+                <div class="debug-info">
+                    <p><strong>ID del Cliente:</strong> <span id="client-id">--</span></p>
+                    <p><strong>Hora del Servidor:</strong> <span id="server-time">--</span></p>
+                    <p><strong>WebSocket Estado:</strong> <span id="websocket-status">--</span></p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>XDEI Práctica 2 - Notificaciones Orion con Flask-SocketIO | <a href="#" id="reconnect-btn">Reconectar</a></p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/socket-client.js') }}"></script>
+</body>
+</html>

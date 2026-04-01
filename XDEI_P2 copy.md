@@ -42,6 +42,7 @@ Cada actuación de implementación se debe llevar hacer usando el flujo de traba
 
 * A partir de los archivos *PRD.md*, *architecture.md* y *data\_model.md***, crear el **primer *issue* consistente en el plan de implementación de la primera versión de la aplicación**. 
 
+
 # Modelo de datos ampliado
 
 1. Actualizar tipo de entidad ***Employee***. Cada empleado trabajará en un solo *Store*. Añadir los atributos *email*, *dateOfContract*, *skills* (‘MachineryDriving’, ‘WritingReports’, ‘CustomerRelationships’), *username*, *password*.  
