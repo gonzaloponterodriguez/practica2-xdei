@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD)
 ## Aplicación FIWARE Mejorada – Práctica 2 XDEI
 
-**Versión:** 1.0 | **Estado:** En Desarrollo
+**Versión:** 1.1 | **Estado:** En Desarrollo
 
 ---
 
@@ -160,3 +160,16 @@ Sistema de gestión de inventario inteligente basado en FIWARE para múltiples t
 - Recorrido 3D con Three.js
 - Datos iniciales 100% cargados
 - GitHub Flow completamente implementado
+
+---
+
+## 8. Estado de Implementación por Issue
+
+### Issue #1 - Modelo de datos ampliado (implementado)
+
+- Script `import-data` ampliado con 4 Stores, 4 Employees, 10 Products, 16 Shelves y 64 InventoryItems.
+- Entity `Employee` implementada con `email`, `dateOfContract`, `skills`, `username`, `password` y `refStore`.
+- Entity `Store` ampliada con `url`, `telephone`, `countryCode`, `capacity`, `description` e `image`.
+- Entity `Product` ampliada con atributo `color` en formato hexadecimal `#RRGGBB`.
+- Registro de proveedores de contexto para `temperature`/`relativeHumidity` y `tweets` para las 4 tiendas.
+- Alta de 2 suscripciones NGSIv2: cambio de precio y bajo stock hacia `http://host.docker.internal:5000/webhooks/notifications`.

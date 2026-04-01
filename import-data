@@ -1,0 +1,230 @@
+#!/bin/sh
+#
+# Reloads context data for Practice 2 extended data model.
+# Compatible with /bin/ash (used by services script).
+#
+
+set -e
+
+ORION_URL="http://orion:1026"
+NOTIFICATION_URL="http://host.docker.internal:5000/webhooks/notifications"
+
+printf "Loading extended context data "
+
+post_update() {
+  payload="$1"
+  curl -s -o /dev/null -X POST \
+    "${ORION_URL}/v2/op/update" \
+    -H 'Content-Type: application/json' \
+    -d "${payload}"
+}
+
+post_json() {
+  endpoint="$1"
+  payload="$2"
+  curl -s -o /dev/null -X POST \
+    "${ORION_URL}${endpoint}" \
+    -H 'Content-Type: application/json' \
+    -d "${payload}"
+}
+
+post_update '{
+  "actionType": "append",
+  "entities": [
+    {
+      "id":"urn:ngsi-ld:Store:001","type":"Store",
+      "address":{"type":"PostalAddress","value":{"streetAddress":"Bornholmer Strasse 65","addressRegion":"Berlin","addressLocality":"Prenzlauer Berg","postalCode":"10439"}},
+      "location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.3986,52.5547]}},
+      "name":{"type":"Text","value":"Bosebrucke Einkauf"},
+      "url":{"type":"Text","value":"https://store1.example.com"},
+      "telephone":{"type":"Text","value":"+49 30 1001001"},
+      "countryCode":{"type":"Text","value":"DE"},
+      "capacity":{"type":"Integer","value":5000},
+      "description":{"type":"Text","value":"Urban flagship store with mixed fresh inventory."},
+      "image":{"type":"URL","value":"https://images.unsplash.com/photo-1515169067868-5387ec356754"}
+    },
+    {
+      "id":"urn:ngsi-ld:Store:002","type":"Store",
+      "address":{"type":"PostalAddress","value":{"streetAddress":"Friedrichstrasse 44","addressRegion":"Berlin","addressLocality":"Kreuzberg","postalCode":"10969"}},
+      "location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.3903,52.5075]}},
+      "name":{"type":"Text","value":"Checkpoint Markt"},
+      "url":{"type":"Text","value":"https://store2.example.com"},
+      "telephone":{"type":"Text","value":"+49 30 1001002"},
+      "countryCode":{"type":"Text","value":"DE"},
+      "capacity":{"type":"Integer","value":7000},
+      "description":{"type":"Text","value":"Central store with high customer turnover."},
+      "image":{"type":"URL","value":"https://images.unsplash.com/photo-1556740738-b6a63e27c4df"}
+    },
+    {
+      "id":"urn:ngsi-ld:Store:003","type":"Store",
+      "address":{"type":"PostalAddress","value":{"streetAddress":"Muhlenstrasse 10","addressRegion":"Berlin","addressLocality":"Friedrichshain","postalCode":"10243"}},
+      "location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.4447,52.5031]}},
+      "name":{"type":"Text","value":"East Side Galleria"},
+      "url":{"type":"Text","value":"https://store3.example.com"},
+      "telephone":{"type":"Text","value":"+49 30 1001003"},
+      "countryCode":{"type":"Text","value":"DE"},
+      "capacity":{"type":"Integer","value":6000},
+      "description":{"type":"Text","value":"Riverside store focused on premium products."},
+      "image":{"type":"URL","value":"https://images.unsplash.com/photo-1604719312566-8912e9c8a213"}
+    },
+    {
+      "id":"urn:ngsi-ld:Store:004","type":"Store",
+      "address":{"type":"PostalAddress","value":{"streetAddress":"Panoramastrasse 1A","addressRegion":"Berlin","addressLocality":"Mitte","postalCode":"10178"}},
+      "location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.4094,52.5208]}},
+      "name":{"type":"Text","value":"Tower Trodelmarkt"},
+      "url":{"type":"Text","value":"https://store4.example.com"},
+      "telephone":{"type":"Text","value":"+49 30 1001004"},
+      "countryCode":{"type":"Text","value":"DE"},
+      "capacity":{"type":"Integer","value":8000},
+      "description":{"type":"Text","value":"Large downtown warehouse-style marketplace."},
+      "image":{"type":"URL","value":"https://images.unsplash.com/photo-1561715276-a2d087060f1d"}
+    }
+  ]
+}'
+
+post_json '/v2/registrations' '{
+  "description": "Weather conditions for all stores",
+  "dataProvided": {
+    "entities": [
+      {"id": "urn:ngsi-ld:Store:001", "type": "Store"},
+      {"id": "urn:ngsi-ld:Store:002", "type": "Store"},
+      {"id": "urn:ngsi-ld:Store:003", "type": "Store"},
+      {"id": "urn:ngsi-ld:Store:004", "type": "Store"}
+    ],
+    "attrs": ["temperature", "relativeHumidity"]
+  },
+  "provider": {
+    "http": {"url": "http://tutorial:3000/proxy/v1/random/weatherConditions"},
+    "legacyForwarding": true
+  },
+  "status": "active"
+}'
+
+post_json '/v2/registrations' '{
+  "description": "Tweets for all stores",
+  "dataProvided": {
+    "entities": [
+      {"id": "urn:ngsi-ld:Store:001", "type": "Store"},
+      {"id": "urn:ngsi-ld:Store:002", "type": "Store"},
+      {"id": "urn:ngsi-ld:Store:003", "type": "Store"},
+      {"id": "urn:ngsi-ld:Store:004", "type": "Store"}
+    ],
+    "attrs": ["tweets"]
+  },
+  "provider": {
+    "http": {"url": "http://tutorial:3000/proxy/v1/catfacts/tweets"},
+    "legacyForwarding": true
+  },
+  "status": "active"
+}'
+
+post_update '{
+  "actionType": "append",
+  "entities": [
+    {"id":"urn:ngsi-ld:Shelf:unit001","type":"Shelf","name":{"type":"Text","value":"S001 Corner"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.39861,52.55470]}},"maxCapacity":{"type":"Integer","value":50},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:001"}},
+    {"id":"urn:ngsi-ld:Shelf:unit002","type":"Shelf","name":{"type":"Text","value":"S001 Wall A"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.39872,52.55466]}},"maxCapacity":{"type":"Integer","value":100},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:001"}},
+    {"id":"urn:ngsi-ld:Shelf:unit003","type":"Shelf","name":{"type":"Text","value":"S001 Wall B"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.39873,52.55465]}},"maxCapacity":{"type":"Integer","value":100},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:001"}},
+    {"id":"urn:ngsi-ld:Shelf:unit004","type":"Shelf","name":{"type":"Text","value":"S001 Front"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.39864,52.55469]}},"maxCapacity":{"type":"Integer","value":60},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:001"}},
+
+    {"id":"urn:ngsi-ld:Shelf:unit005","type":"Shelf","name":{"type":"Text","value":"S002 Corner"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.39031,52.50752]}},"maxCapacity":{"type":"Integer","value":50},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:002"}},
+    {"id":"urn:ngsi-ld:Shelf:unit006","type":"Shelf","name":{"type":"Text","value":"S002 Wall A"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.39030,52.50751]}},"maxCapacity":{"type":"Integer","value":200},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:002"}},
+    {"id":"urn:ngsi-ld:Shelf:unit007","type":"Shelf","name":{"type":"Text","value":"S002 Wall B"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.39033,52.50749]}},"maxCapacity":{"type":"Integer","value":100},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:002"}},
+    {"id":"urn:ngsi-ld:Shelf:unit008","type":"Shelf","name":{"type":"Text","value":"S002 Front"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.39028,52.50750]}},"maxCapacity":{"type":"Integer","value":80},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:002"}},
+
+    {"id":"urn:ngsi-ld:Shelf:unit009","type":"Shelf","name":{"type":"Text","value":"S003 Corner"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.44471,52.50320]}},"maxCapacity":{"type":"Integer","value":50},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:003"}},
+    {"id":"urn:ngsi-ld:Shelf:unit010","type":"Shelf","name":{"type":"Text","value":"S003 Wall A"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.44472,52.50316]}},"maxCapacity":{"type":"Integer","value":100},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:003"}},
+    {"id":"urn:ngsi-ld:Shelf:unit011","type":"Shelf","name":{"type":"Text","value":"S003 Wall B"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.44474,52.50314]}},"maxCapacity":{"type":"Integer","value":100},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:003"}},
+    {"id":"urn:ngsi-ld:Shelf:unit012","type":"Shelf","name":{"type":"Text","value":"S003 Front"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.44470,52.50312]}},"maxCapacity":{"type":"Integer","value":70},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:003"}},
+
+    {"id":"urn:ngsi-ld:Shelf:unit013","type":"Shelf","name":{"type":"Text","value":"S004 Corner"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.40941,52.52080]}},"maxCapacity":{"type":"Integer","value":200},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:004"}},
+    {"id":"urn:ngsi-ld:Shelf:unit014","type":"Shelf","name":{"type":"Text","value":"S004 Wall A"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.40944,52.52078]}},"maxCapacity":{"type":"Integer","value":150},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:004"}},
+    {"id":"urn:ngsi-ld:Shelf:unit015","type":"Shelf","name":{"type":"Text","value":"S004 Wall B"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.40946,52.52076]}},"maxCapacity":{"type":"Integer","value":150},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:004"}},
+    {"id":"urn:ngsi-ld:Shelf:unit016","type":"Shelf","name":{"type":"Text","value":"S004 Front"},"location":{"type":"geo:json","value":{"type":"Point","coordinates":[13.40939,52.52081]}},"maxCapacity":{"type":"Integer","value":100},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:004"}}
+  ]
+}'
+
+post_update '{
+  "actionType":"APPEND",
+  "entities":[
+    {"id":"urn:ngsi-ld:Product:001","type":"Product","name":{"type":"Text","value":"Apples"},"size":{"type":"Text","value":"S"},"price":{"type":"Integer","value":99},"color":{"type":"Text","value":"#FF5733"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1567306226416-28f0efdc88ce"}},
+    {"id":"urn:ngsi-ld:Product:002","type":"Product","name":{"type":"Text","value":"Bananas"},"size":{"type":"Text","value":"M"},"price":{"type":"Integer","value":1099},"color":{"type":"Text","value":"#FFD700"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1574226516831-e1dff420e8f8"}},
+    {"id":"urn:ngsi-ld:Product:003","type":"Product","name":{"type":"Text","value":"Coconuts"},"size":{"type":"Text","value":"M"},"price":{"type":"Integer","value":1499},"color":{"type":"Text","value":"#8B4513"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1581375321224-79da6fd32f6a"}},
+    {"id":"urn:ngsi-ld:Product:004","type":"Product","name":{"type":"Text","value":"Melons"},"size":{"type":"Text","value":"XL"},"price":{"type":"Integer","value":5000},"color":{"type":"Text","value":"#90EE90"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1563114773-84221bd62daa"}},
+    {"id":"urn:ngsi-ld:Product:005","type":"Product","name":{"type":"Text","value":"Kiwi Fruits"},"size":{"type":"Text","value":"S"},"price":{"type":"Integer","value":99},"color":{"type":"Text","value":"#6B8E23"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1585059895524-72359e06133a"}},
+    {"id":"urn:ngsi-ld:Product:006","type":"Product","name":{"type":"Text","value":"Strawberries"},"size":{"type":"Text","value":"S"},"price":{"type":"Integer","value":99},"color":{"type":"Text","value":"#FF1493"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1464965911861-746a04b4bca6"}},
+    {"id":"urn:ngsi-ld:Product:007","type":"Product","name":{"type":"Text","value":"Raspberries"},"size":{"type":"Text","value":"S"},"price":{"type":"Integer","value":99},"color":{"type":"Text","value":"#C72C48"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1577003833619-76bbd7f82948"}},
+    {"id":"urn:ngsi-ld:Product:008","type":"Product","name":{"type":"Text","value":"Pineapples"},"size":{"type":"Text","value":"L"},"price":{"type":"Integer","value":299},"color":{"type":"Text","value":"#FFB90F"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1589820296156-2454bb8a6ad1"}},
+    {"id":"urn:ngsi-ld:Product:009","type":"Product","name":{"type":"Text","value":"Oranges"},"size":{"type":"Text","value":"M"},"price":{"type":"Integer","value":199},"color":{"type":"Text","value":"#FF8C00"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b"}},
+    {"id":"urn:ngsi-ld:Product:010","type":"Product","name":{"type":"Text","value":"Grapes"},"size":{"type":"Text","value":"M"},"price":{"type":"Integer","value":249},"color":{"type":"Text","value":"#722F37"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1537640538966-79f369143f8f"}}
+  ]
+}'
+
+post_update '{
+  "actionType":"APPEND",
+  "entities":[
+    {"id":"urn:ngsi-ld:Employee:001","type":"Employee","name":{"type":"Text","value":"Juan Garcia"},"email":{"type":"Text","value":"juan@store.com"},"dateOfContract":{"type":"DateTime","value":"2022-03-15T00:00:00Z"},"skills":{"type":"Array","value":["MachineryDriving","WritingReports"]},"username":{"type":"Text","value":"juan.garcia"},"password":{"type":"Text","value":"hash_juan_2026"},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:001"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1500648767791-00dcc994a43e"}},
+    {"id":"urn:ngsi-ld:Employee:002","type":"Employee","name":{"type":"Text","value":"Maria Lopez"},"email":{"type":"Text","value":"maria@store.com"},"dateOfContract":{"type":"DateTime","value":"2021-06-10T00:00:00Z"},"skills":{"type":"Array","value":["CustomerRelationships"]},"username":{"type":"Text","value":"maria.lopez"},"password":{"type":"Text","value":"hash_maria_2026"},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:002"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1544005313-94ddf0286df2"}},
+    {"id":"urn:ngsi-ld:Employee:003","type":"Employee","name":{"type":"Text","value":"Pedro Martinez"},"email":{"type":"Text","value":"pedro@store.com"},"dateOfContract":{"type":"DateTime","value":"2020-11-20T00:00:00Z"},"skills":{"type":"Array","value":["WritingReports","MachineryDriving"]},"username":{"type":"Text","value":"pedro.martinez"},"password":{"type":"Text","value":"hash_pedro_2026"},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:003"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d"}},
+    {"id":"urn:ngsi-ld:Employee:004","type":"Employee","name":{"type":"Text","value":"Ana Rodriguez"},"email":{"type":"Text","value":"ana@store.com"},"dateOfContract":{"type":"DateTime","value":"2023-01-05T00:00:00Z"},"skills":{"type":"Array","value":["CustomerRelationships","WritingReports"]},"username":{"type":"Text","value":"ana.rodriguez"},"password":{"type":"Text","value":"hash_ana_2026"},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:004"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1487412720507-e7ab37603c6f"}}
+  ]
+}'
+
+shelf_store_pairs="unit001:001 unit002:001 unit003:001 unit004:001 unit005:002 unit006:002 unit007:002 unit008:002 unit009:003 unit010:003 unit011:003 unit012:003 unit013:004 unit014:004 unit015:004 unit016:004"
+inventory_entities=""
+item_counter=1
+shelf_index=0
+
+for pair in $shelf_store_pairs; do
+  shelf="${pair%%:*}"
+  store="${pair##*:}"
+  offset=0
+  while [ "$offset" -lt 4 ]; do
+    product_num=$(( (shelf_index + offset) % 10 + 1 ))
+    product_id=$(printf "%03d" "$product_num")
+    inv_id=$(printf "%03d" "$item_counter")
+    shelf_count=$(( 8 + (offset * 4) + (shelf_index % 4) ))
+    stock_count=$(( 120 + shelf_count + (shelf_index * 3) ))
+    obj="{\"id\":\"urn:ngsi-ld:InventoryItem:${inv_id}\",\"type\":\"InventoryItem\",\"refStore\":{\"type\":\"Relationship\",\"value\":\"urn:ngsi-ld:Store:${store}\"},\"refShelf\":{\"type\":\"Relationship\",\"value\":\"urn:ngsi-ld:Shelf:${shelf}\"},\"refProduct\":{\"type\":\"Relationship\",\"value\":\"urn:ngsi-ld:Product:${product_id}\"},\"stockCount\":{\"type\":\"Integer\",\"value\":${stock_count}},\"shelfCount\":{\"type\":\"Integer\",\"value\":${shelf_count}}}"
+    if [ -n "$inventory_entities" ]; then
+      inventory_entities="${inventory_entities},${obj}"
+    else
+      inventory_entities="${obj}"
+    fi
+    item_counter=$((item_counter + 1))
+    offset=$((offset + 1))
+  done
+  shelf_index=$((shelf_index + 1))
+done
+
+post_update "{\"actionType\":\"APPEND\",\"entities\":[${inventory_entities}]}"
+
+post_json '/v2/subscriptions' "{
+  \"description\": \"Product price changes\",
+  \"subject\": {
+    \"entities\": [{\"idPattern\": \"urn:ngsi-ld:Product:.*\", \"type\": \"Product\"}],
+    \"condition\": {\"attrs\": [\"price\"]}
+  },
+  \"notification\": {
+    \"http\": {\"url\": \"${NOTIFICATION_URL}\"},
+    \"attrs\": [\"price\", \"name\"]
+  },
+  \"throttling\": 1
+}"
+
+post_json '/v2/subscriptions' "{
+  \"description\": \"Low stock alerts\",
+  \"subject\": {
+    \"entities\": [{\"idPattern\": \"urn:ngsi-ld:InventoryItem:.*\", \"type\": \"InventoryItem\"}],
+    \"condition\": {
+      \"attrs\": [\"stockCount\"],
+      \"expression\": {\"q\": \"stockCount<5\"}
+    }
+  },
+  \"notification\": {
+    \"http\": {\"url\": \"${NOTIFICATION_URL}\"},
+    \"attrs\": [\"stockCount\", \"shelfCount\", \"refStore\", \"refProduct\"]
+  },
+  \"throttling\": 1
+}"
+
+echo "done"

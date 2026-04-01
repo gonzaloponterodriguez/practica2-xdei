@@ -376,3 +376,17 @@ python-socketio==5.9.0
 5. **Pull Request** para review
 6. **Merge a main** tras aprobación
 7. **Actualizar PRD/architecture/data_model** tras cada merge
+
+---
+
+## 10. Estado de Implementación del Issue #1
+
+Implementado en la rama `feature/modelo-datos-ampliado`:
+
+- Carga de datos ampliada en `import-data` con modelo NGSIv2 completo.
+- 4 `Store` con atributos extendidos (`url`, `telephone`, `countryCode`, `capacity`, `description`, `image`).
+- 4 `Employee` (1 por tienda) con nuevos atributos del enunciado.
+- 10 `Product` con atributo `color` hexadecimal y `image`.
+- 16 `Shelf` (4 por tienda) y 64 `InventoryItem` (>=4 por estanteria).
+- 2 registros de proveedores de contexto (`weather/humidity` y `tweets`) para las 4 tiendas.
+- 2 suscripciones NGSIv2 con callback a `host.docker.internal`.
