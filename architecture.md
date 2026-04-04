@@ -501,3 +501,30 @@ Implementado en la rama `feature/vista-product-grouped-inventory`:
 - **Compatibilidad y regresión:**
   - Se mantiene router hash SPA y notificaciones Socket.IO activas.
   - El tab activo para `product-detail` se mantiene en `Products` para navegación consistente.
+
+---
+
+## 14. Estado de Implementación del Issue #9
+
+Implementado en la rama `feature/vista-store-core`:
+
+- **Vista `store-detail` (frontend SPA):**
+  - Nueva ruta hash `#store-detail` y asociación de navegación con sección `Stores`.
+  - Pantalla de detalle con métricas de Store (`temperature`, `relativeHumidity`) y bloque de `tweets`.
+  - Tabla agrupada por Shelf con cabeceras de grupo y filas hijas de Products.
+
+- **Operaciones de dominio en Store detail:**
+  - Alta de Shelf para un Store (`POST /api/stores/<id>/shelves`).
+  - Edición de Shelf (`PATCH /api/shelves/<id>`).
+  - Alta de InventoryItem desde Store+Shelf (`POST /api/stores/<id>/inventory-items`).
+  - Acción de compra unitaria con decremento atómico en Orion (`POST /api/inventory-items/<id>/buy`).
+  - Carga de Products elegibles por Shelf (`GET /api/stores/<id>/available-products?shelfId=<id>`).
+
+- **Capa de agregación backend (Flask):**
+  - Endpoint `GET /api/stores/<id>/inventory-grouped` para componer proyección de lectura agrupada por Shelf.
+  - Cálculo de ocupación por Shelf: `fillCount`, `maxCapacity`, `fillPercent`.
+  - Enriquecimiento con datos de Product (`name`, `price`, `size`, `color`, `image`).
+
+- **Eventos tiempo real en detalle de Store:**
+  - Integración con `product_price_changed` y `stock_alert` para poblar panel local de notificaciones.
+  - Extensión del cliente Socket.IO para emitir evento interno `app:stock-alert`.
