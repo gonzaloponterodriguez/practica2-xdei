@@ -185,3 +185,20 @@ Sistema de gestión de inventario inteligente basado en FIWARE para múltiples t
 - `requirements.txt` con Flask 2.3, Flask-SocketIO 5.3, Flask-CORS, requests.
 - `README.md` completo con instrucciones, validación end-to-end, troubleshooting y ejemplos.
 - Validación: webhook acepta eventos de Orion, emite a navegador, reconexión automática funcional.
+
+### Issue #5 - Interfaz de usuario HTML + CSS + JS y formularios de entrada de datos (implementado)
+
+- Interfaz refactorizada a estructura multi-vista con navegación sticky: `Home`, `Products`, `Employees`.
+- Vista `Home` con diagrama UML Mermaid y tarjetas KPI (products, employees, stores, inventory items).
+- CRUD completo para `Product` desde frontend:
+   - Tabla con columnas `image`, `name`, `color`, `size`, `price` y acciones editar/borrar.
+   - Formulario modal de alta/modificación con validación HTML5 + JS.
+- CRUD completo para `Employee` desde frontend:
+   - Tabla con columnas `photo`, `name`, `email`, `skills`, `username`, `store`, `contract date`.
+   - Formulario modal con selector `refStore`, checkboxes `skills`, reglas de `username/password`.
+- Endpoints backend nuevos en Flask para proxy NGSIv2 contra Orion:
+   - `/api/summary`, `/api/stores`
+   - `/api/products` (GET/POST) y `/api/products/<id>` (PATCH/DELETE)
+   - `/api/employees` (GET/POST) y `/api/employees/<id>` (PATCH/DELETE)
+- Mantenimiento de notificaciones Socket.IO de Issue #3 integradas con la nueva interfaz.
+- Gestión de errores de formularios y APIs con mensajes globales e inline por campo.
