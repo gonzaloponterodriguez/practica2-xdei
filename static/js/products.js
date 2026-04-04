@@ -1,6 +1,8 @@
 const productsState = {
     items: [],
     editingId: null,
+    selectedProductId: null,
+    groupedInventory: null,
 };
 
 function filterProducts(list, term) {
@@ -30,6 +32,7 @@ function renderProducts() {
                 <td>${p.size || "-"}</td>
                 <td>${p.price ?? "-"}</td>
                 <td>
+                    <button class="chip-btn" data-view-product="${p.id}">View</button>
                     <button class="chip-btn" data-edit-product="${p.id}">Edit</button>
                     <button class="chip-btn danger" data-delete-product="${p.id}">Delete</button>
                 </td>
@@ -145,6 +148,117 @@ async function deleteProductById(entityId) {
     }
 }
 
+function renderProductDetail() {
+    const tbody = document.getElementById("product-detail-tbody");
+    const empty = document.getElementById("product-detail-empty");
+    const grouped = productsState.groupedInventory?.stores || [];
+
+    const rows = [];
+    grouped.forEach((group) => {
+        rows.push(`<tr class="group-row">
+            <td><strong>${group.storeName}</strong></td>
+            <td><strong>${group.stockCount}</strong></td>
+            <td>-</td>
+            <td><button class="chip-btn" data-add-inventory-store="${group.storeId}" data-add-inventory-store-name="${group.storeName}">Add InventoryItem</button></td>
+        </tr>`);
+
+        group.shelves.forEach((shelf) => {
+            rows.push(`<tr class="child-row">
+                <td>${shelf.shelfName}</td>
+                <td>-</td>
+                <td>${shelf.shelfCount}</td>
+                <td></td>
+            </tr>`);
+        });
+    });
+
+    tbody.innerHTML = rows.join("");
+    empty.style.display = rows.length ? "none" : "block";
+}
+
+async function loadProductDetail(productId) {
+    try {
+        const payload = await window.appApi.api.get(`/api/products/${encodeURIComponent(productId)}/inventory-grouped`);
+        productsState.groupedInventory = payload.data || { stores: [] };
+        renderProductDetail();
+    } catch (err) {
+        window.appApi.showAlert(err.message || "No se pudo cargar el detalle del producto.");
+    }
+}
+
+function openProductDetail(productId) {
+    const product = productsState.items.find((item) => item.id === productId);
+    if (!product) return;
+
+    productsState.selectedProductId = productId;
+    document.getElementById("product-detail-title").textContent = `Product Detail: ${product.name}`;
+    window.location.hash = "#product-detail";
+    loadProductDetail(productId);
+}
+
+async function openInventoryItemModal(storeId, storeName) {
+    const productId = productsState.selectedProductId;
+    if (!productId) return;
+
+    const modal = document.getElementById("inventory-item-modal");
+    const select = document.getElementById("inventory-shelf-select");
+    const errorNode = document.getElementById("inventory-shelf-error");
+    const submitBtn = document.getElementById("inventory-item-submit");
+    errorNode.textContent = "";
+
+    document.getElementById("inventory-product-id").value = productId;
+    document.getElementById("inventory-store-id").value = storeId;
+    document.getElementById("inventory-store-name").value = storeName;
+
+    try {
+        const payload = await window.appApi.api.get(
+            `/api/products/${encodeURIComponent(productId)}/available-shelves?storeId=${encodeURIComponent(storeId)}`
+        );
+        const shelves = payload.data || [];
+
+        if (!shelves.length) {
+            select.innerHTML = '<option value="">No available shelves</option>';
+            submitBtn.disabled = true;
+            errorNode.textContent = "No hay shelves disponibles para este producto en la tienda.";
+        } else {
+            select.innerHTML = shelves.map((shelf) => `<option value="${shelf.id}">${shelf.name}</option>`).join("");
+            submitBtn.disabled = false;
+        }
+
+        modal.showModal();
+    } catch (err) {
+        window.appApi.showAlert(err.message || "No se pudieron cargar shelves disponibles.");
+    }
+}
+
+async function saveInventoryItem(event) {
+    event.preventDefault();
+    const productId = document.getElementById("inventory-product-id").value;
+    const storeId = document.getElementById("inventory-store-id").value;
+    const shelfId = document.getElementById("inventory-shelf-select").value;
+    const errorNode = document.getElementById("inventory-shelf-error");
+    errorNode.textContent = "";
+
+    if (!shelfId) {
+        errorNode.textContent = "Selecciona una shelf.";
+        return;
+    }
+
+    try {
+        await window.appApi.api.post(`/api/products/${encodeURIComponent(productId)}/inventory-items`, {
+            refStore: storeId,
+            refShelf: shelfId,
+            shelfCount: 1,
+            stockCount: 1,
+        });
+        window.appApi.closeDialogById("inventory-item-modal");
+        window.appApi.showAlert("InventoryItem creado", "success");
+        await loadProductDetail(productId);
+    } catch (err) {
+        errorNode.textContent = err.message || "No se pudo crear InventoryItem.";
+    }
+}
+
 function setupProductsEvents() {
     document.getElementById("btn-new-product").addEventListener("click", () => openProductModal());
     document.getElementById("products-search").addEventListener("input", renderProducts);
@@ -155,8 +269,13 @@ function setupProductsEvents() {
     });
 
     document.getElementById("products-tbody").addEventListener("click", (ev) => {
+        const viewId = ev.target.getAttribute("data-view-product");
         const editId = ev.target.getAttribute("data-edit-product");
         const deleteId = ev.target.getAttribute("data-delete-product");
+
+        if (viewId) {
+            openProductDetail(viewId);
+        }
 
         if (editId) {
             const product = productsState.items.find((item) => item.id === editId);
@@ -165,6 +284,20 @@ function setupProductsEvents() {
 
         if (deleteId) deleteProductById(deleteId);
     });
+
+    document.getElementById("product-detail-back").addEventListener("click", () => {
+        window.location.hash = "#products";
+    });
+
+    document.getElementById("product-detail-tbody").addEventListener("click", (ev) => {
+        const storeId = ev.target.getAttribute("data-add-inventory-store");
+        const storeName = ev.target.getAttribute("data-add-inventory-store-name") || "";
+        if (storeId) {
+            openInventoryItemModal(storeId, storeName);
+        }
+    });
+
+    document.getElementById("inventory-item-form").addEventListener("submit", saveInventoryItem);
 }
 
 document.addEventListener("DOMContentLoaded", () => {

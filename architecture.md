@@ -470,3 +470,34 @@ Implementado en la rama `feature/ui-forms-crud`:
   - `static/js/router.js` (enrutado de vistas + tema)
   - `static/js/products.js` (CRUD products)
   - `static/js/employees.js` (CRUD employees)
+
+---
+
+## 13. Estado de Implementación del Issue #7
+
+Implementado en la rama `feature/vista-product-grouped-inventory`:
+
+- **Vista Product detail (frontend):**
+  - Nueva vista `product-detail` accesible desde la tabla de Products (botón `View`).
+  - Tabla agrupada por Store con subfilas por Shelf.
+  - Fila de Store muestra `stockCount` agregado por Product en dicha tienda.
+  - Filas de Shelf muestran `shelfCount` por ubicación.
+
+- **Flujo Add InventoryItem por Store:**
+  - En cada cabecera de Store hay botón `Add InventoryItem`.
+  - Apertura de modal con select de Shelves disponibles para ese Product+Store.
+  - Selección dinámica de Shelves elegibles (sin duplicados existentes).
+
+- **Nuevos endpoints backend (Flask + Orion proxy):**
+  - `GET /api/products/<id>/inventory-grouped`
+  - `GET /api/products/<id>/available-shelves?storeId=<id>`
+  - `POST /api/products/<id>/inventory-items`
+
+- **Reglas de consistencia implementadas:**
+  - Prohibición de duplicar InventoryItem para misma combinación `refProduct + refShelf`.
+  - Validación de pertenencia `Shelf -> Store` antes de crear InventoryItem.
+  - Respuestas de error consistentes para casos de validación y conflicto.
+
+- **Compatibilidad y regresión:**
+  - Se mantiene router hash SPA y notificaciones Socket.IO activas.
+  - El tab activo para `product-detail` se mantiene en `Products` para navegación consistente.

@@ -1,6 +1,7 @@
 function setActiveRoute(route) {
+    const navRoute = route === "product-detail" ? "products" : route;
     document.querySelectorAll(".nav-link").forEach((link) => {
-        link.classList.toggle("active", link.dataset.route === route);
+        link.classList.toggle("active", link.dataset.route === navRoute);
     });
     document.querySelectorAll(".view").forEach((view) => {
         view.classList.toggle("active-view", view.id === `view-${route}`);
@@ -9,7 +10,7 @@ function setActiveRoute(route) {
 
 function readRouteFromHash() {
     const route = location.hash.replace("#", "") || "home";
-    return ["home", "products", "stores", "employees"].includes(route) ? route : "home";
+    return ["home", "products", "product-detail", "stores", "employees"].includes(route) ? route : "home";
 }
 
 function setupThemeToggle() {

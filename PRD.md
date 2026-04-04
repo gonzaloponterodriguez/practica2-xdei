@@ -202,3 +202,20 @@ Sistema de gestión de inventario inteligente basado en FIWARE para múltiples t
    - `/api/employees` (GET/POST) y `/api/employees/<id>` (PATCH/DELETE)
 - Mantenimiento de notificaciones Socket.IO de Issue #3 integradas con la nueva interfaz.
 - Gestión de errores de formularios y APIs con mensajes globales e inline por campo.
+
+### Issue #7 - Vista Product (implementado)
+
+- Vista de detalle de Product añadida con tabla de `InventoryItems` agrupada por `Store`.
+- Por cada Store se muestra:
+   - Fila de cabecera con `storeName` y `stockCount` agregado del Product en esa tienda.
+   - Filas hijas por `Shelf` con `shelfCount`.
+- Botón en cabecera de cada Store para añadir un `InventoryItem` del Product en otra Shelf.
+- Selector dinámico de Shelves elegibles (excluye shelves donde ese Product ya existe).
+- Validaciones aplicadas:
+   - Evita duplicado `Product + Shelf`.
+   - Verifica que la Shelf pertenece al Store seleccionado.
+- Endpoints backend añadidos:
+   - `GET /api/products/<id>/inventory-grouped`
+   - `GET /api/products/<id>/available-shelves?storeId=<id>`
+   - `POST /api/products/<id>/inventory-items`
+- Integración mantenida con notificaciones en tiempo real de Orion sin regresiones.
