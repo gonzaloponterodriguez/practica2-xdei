@@ -605,3 +605,92 @@ Estas cifras forman la base del dataset inicial para los siguientes issues de ba
 ## Próximo Paso
 
 Crear **issue en GitHub** con este modelo como base para la primera rama feature de implementación.
+
+---
+
+## 14. Implementación de Formularios y Normalización NGSIv2 (Issue #5)
+
+La implementación del Issue #5 añade una capa de normalización entre formularios web (payload plano JSON) y entidades NGSIv2 en Orion.
+
+### 14.1 Product: formulario → NGSIv2
+
+**Payload UI (frontend):**
+
+```json
+{
+  "name": "Apples",
+  "color": "#FF5733",
+  "size": "M",
+  "price": 99,
+  "image": "https://..."
+}
+```
+
+**Payload NGSIv2 enviado a Orion:**
+
+```json
+{
+  "id": "urn:ngsi-ld:Product:...",
+  "type": "Product",
+  "name": {"type": "Text", "value": "Apples"},
+  "color": {"type": "Text", "value": "#FF5733"},
+  "size": {"type": "Text", "value": "M"},
+  "price": {"type": "Integer", "value": 99},
+  "image": {"type": "URL", "value": "https://..."}
+}
+```
+
+### 14.2 Employee: formulario → NGSIv2
+
+**Payload UI (frontend):**
+
+```json
+{
+  "name": "Alice",
+  "email": "alice@example.com",
+  "dateOfContract": "2026-04-04",
+  "skills": ["MachineryDriving"],
+  "username": "alice_01",
+  "password": "securepass",
+  "refStore": "urn:ngsi-ld:Store:001",
+  "image": "https://..."
+}
+```
+
+**Payload NGSIv2 enviado a Orion:**
+
+```json
+{
+  "id": "urn:ngsi-ld:Employee:...",
+  "type": "Employee",
+  "name": {"type": "Text", "value": "Alice"},
+  "email": {"type": "Text", "value": "alice@example.com"},
+  "dateOfContract": {"type": "DateTime", "value": "2026-04-04"},
+  "skills": {"type": "StructuredValue", "value": ["MachineryDriving"]},
+  "username": {"type": "Text", "value": "alice_01"},
+  "password": {"type": "Text", "value": "securepass"},
+  "refStore": {"type": "Relationship", "value": "urn:ngsi-ld:Store:001"},
+  "image": {"type": "URL", "value": "https://..."}
+}
+```
+
+### 14.3 Validaciones aplicadas
+
+- `Product.color`: regex `^#[0-9A-Fa-f]{6}$`
+- `Product.size`: enum `XS|S|M|L|XL`
+- `Product.price`: entero positivo
+- `Employee.skills`: al menos un valor del enum permitido
+- `Employee.username`: regex `^[A-Za-z0-9_]+$` y longitud mínima 3
+- `Employee.password`: longitud mínima 8 (obligatoria en alta)
+- `Employee.refStore`: URN de tipo `Store`
+
+### 14.4 Endpoints REST internos (Flask)
+
+- `GET /api/summary`
+- `GET /api/stores`
+- `GET/POST /api/products`
+- `PATCH/DELETE /api/products/<id>`
+- `GET/POST /api/employees`
+- `PATCH/DELETE /api/employees/<id>`
+
+Estos endpoints permiten desacoplar la interfaz de usuario del formato NGSIv2 y centralizar la validación del modelo.

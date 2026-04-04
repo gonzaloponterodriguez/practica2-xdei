@@ -429,3 +429,44 @@ Implementado en la rama `feature/notifications-socketio`:
   - Suscripciones NGSIv2 activas apuntando a Flask.
   - Cambios en Orion generan eventos en navegador.
   - Cliente reconecta automáticamente tras desconexión.
+
+---
+
+## 12. Estado de Implementación del Issue #5
+
+Implementado en la rama `feature/ui-forms-crud`:
+
+- **Arquitectura frontend multi-vista (SPA ligera con hash router):**
+  - Vista `Home` con diagrama UML Mermaid + KPIs de entidades.
+  - Vista `Products` con tabla y formularios modal para alta/edición.
+  - Vista `Employees` con tabla y formularios modal para alta/edición.
+  - Navegación sticky con sección activa y soporte responsive.
+
+- **Capa de API backend en Flask (proxy Orion):**
+  - Nuevo endpoint `GET /api/summary` para KPIs.
+  - Nuevo endpoint `GET /api/stores` para poblar selector `refStore`.
+  - CRUD de productos:
+    - `GET /api/products`
+    - `POST /api/products`
+    - `PATCH /api/products/<id>`
+    - `DELETE /api/products/<id>`
+  - CRUD de empleados:
+    - `GET /api/employees`
+    - `POST /api/employees`
+    - `PATCH /api/employees/<id>`
+    - `DELETE /api/employees/<id>`
+
+- **Validación y robustez:**
+  - Validación server-side de `Product` y `Employee` antes de enviar a Orion.
+  - Validación client-side (HTML5 + JS) para experiencia inmediata en formularios.
+  - Respuesta de error estandarizada (`status`, `message`, `fieldErrors`).
+
+- **Integración con tiempo real existente:**
+  - Se mantiene la recepción de webhooks Orion en `/webhooks/notifications`.
+  - Los eventos Socket.IO actualizan panel de notificaciones y disparan refresco de productos tras cambios de precio.
+
+- **Componentes frontend añadidos:**
+  - `static/js/api.js` (cliente HTTP + utilidades de errores)
+  - `static/js/router.js` (enrutado de vistas + tema)
+  - `static/js/products.js` (CRUD products)
+  - `static/js/employees.js` (CRUD employees)

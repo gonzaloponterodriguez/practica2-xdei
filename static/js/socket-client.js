@@ -103,16 +103,16 @@ class NotificationsClient {
 
     setupUIListeners() {
         // Filter buttons
-        document.getElementById('filter-all').addEventListener('click', () => {
-            this.setFilter('all');
+        document.getElementById('filter-all').addEventListener('click', (event) => {
+            this.setFilter('all', event.currentTarget);
         });
 
-        document.getElementById('filter-price').addEventListener('click', () => {
-            this.setFilter('price');
+        document.getElementById('filter-price').addEventListener('click', (event) => {
+            this.setFilter('price', event.currentTarget);
         });
 
-        document.getElementById('filter-stock').addEventListener('click', () => {
-            this.setFilter('stock');
+        document.getElementById('filter-stock').addEventListener('click', (event) => {
+            this.setFilter('stock', event.currentTarget);
         });
 
         // Clear notifications
@@ -142,6 +142,12 @@ class NotificationsClient {
         document.getElementById('last-update').textContent = new Date().toLocaleTimeString('es-ES');
 
         this.renderNotifications();
+
+        if (notification.type === 'price') {
+            document.dispatchEvent(new CustomEvent('app:product-price-changed', {
+                detail: notification.data
+            }));
+        }
     }
 
     renderNotifications() {
@@ -180,14 +186,16 @@ class NotificationsClient {
         `).join('');
     }
 
-    setFilter(filter) {
+    setFilter(filter, targetBtn) {
         this.currentFilter = filter;
         
         // Update active button
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.classList.remove('active');
         });
-        event.target.classList.add('active');
+        if (targetBtn) {
+            targetBtn.classList.add('active');
+        }
 
         this.renderNotifications();
         logger.info(`[UI] Filter changed to: ${filter}`);

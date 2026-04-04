@@ -3,80 +3,402 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notificaciones Orion - Sistema de Inventario</title>
+    <title>Inventario FIWARE - Home, Products, Employees</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 </head>
 <body>
     <div id="app">
-        <!-- Header -->
         <header class="header">
-            <h1>📦 Sistema de Notificaciones - FIWARE Orion</h1>
-            <div class="connection-status">
-                <span id="status-icon" class="status-icon disconnected"></span>
-                <span id="status-text" class="status-text">Desconectado</span>
+            <h1>Sistema FIWARE Inventario</h1>
+            <div class="header-actions">
+                <button id="theme-toggle" class="chip-btn" type="button">Dark/Light</button>
+                <div class="connection-status">
+                    <span id="status-icon" class="status-icon disconnected"></span>
+                    <span id="status-text" class="status-text">Desconectado</span>
+                </div>
             </div>
         </header>
 
-        <!-- Main Container -->
-        <main class="container">
-            <!-- Stats Panel -->
-            <section class="stats-panel">
-                <div class="stat-card">
-                    <span class="stat-label">Clientes conectados</span>
-                    <span id="client-count" class="stat-value">0</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">Notificaciones recibidas</span>
-                    <span id="notification-count" class="stat-value">0</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">Última actualización</span>
-                    <span id="last-update" class="stat-value">--:--:--</span>
-                </div>
+        <nav class="top-nav">
+            <a class="nav-link active" data-route="home" href="#home">Home</a>
+            <a class="nav-link" data-route="products" href="#products">Products</a>
+            <a class="nav-link" data-route="stores" href="#stores">Stores</a>
+            <a class="nav-link" data-route="employees" href="#employees">Employees</a>
+        </nav>
+
+        <div id="global-alert" class="global-alert hidden"></div>
+
+        <main class="layout-grid">
+            <section class="main-area">
+                <section id="view-home" class="view active-view">
+                    <div class="stats-panel">
+                        <div class="stat-card">
+                            <span class="stat-label">Products</span>
+                            <span id="kpi-products" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Employees</span>
+                            <span id="kpi-employees" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Stores</span>
+                            <span id="kpi-stores" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Inventory Items</span>
+                            <span id="kpi-inventoryitem" class="stat-value">0</span>
+                        </div>
+                    </div>
+
+                    <article class="panel">
+                        <h2>Diagrama UML</h2>
+                        <div class="uml-wrap">
+                            <div class="mermaid" id="uml-mermaid">
+classDiagram
+    Store "1" -- "1..*" Employee : employs
+    Store "1" -- "4..*" Shelf : contains
+    Product "1" -- "1..*" InventoryItem : referenced
+    Shelf "1" -- "1..*" InventoryItem : contains
+    Store "1" -- "1..*" InventoryItem : manages
+
+    class Store {
+      +name
+      +countryCode
+      +capacity
+      +temperature
+      +relativeHumidity
+    }
+
+    class Product {
+      +name
+      +color
+      +size
+      +price
+    }
+
+    class Employee {
+      +name
+      +email
+      +skills[]
+      +username
+      +refStore
+    }
+
+    class InventoryItem {
+      +refStore
+      +refShelf
+      +refProduct
+      +stockCount
+      +shelfCount
+    }
+                            </div>
+                        </div>
+                    </article>
+                </section>
+
+                <section id="view-products" class="view">
+                    <div class="toolbar">
+                        <h2>Products</h2>
+                        <div class="toolbar-actions">
+                            <input id="products-search" type="search" placeholder="Buscar por nombre">
+                            <button id="btn-new-product" class="primary-btn" type="button">Add Product</button>
+                        </div>
+                    </div>
+
+                    <article class="panel">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Image</th>
+                                        <th>Name</th>
+                                        <th>Color</th>
+                                        <th>Size</th>
+                                        <th>Price</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="products-tbody"></tbody>
+                            </table>
+                        </div>
+                        <p id="products-empty" class="empty-state">No products available.</p>
+                    </article>
+                </section>
+
+                <section id="view-employees" class="view">
+                    <div class="toolbar">
+                        <h2>Employees</h2>
+                        <div class="toolbar-actions">
+                            <input id="employees-search" type="search" placeholder="Buscar por nombre/email">
+                            <button id="btn-new-employee" class="primary-btn" type="button">Add Employee</button>
+                        </div>
+                    </div>
+
+                    <article class="panel">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Photo</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Category</th>
+                                        <th>Skills</th>
+                                        <th>Username</th>
+                                        <th>Store</th>
+                                        <th>Contract</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="employees-tbody"></tbody>
+                            </table>
+                        </div>
+                        <p id="employees-empty" class="empty-state">No employees available.</p>
+                    </article>
+                </section>
+
+                <section id="view-stores" class="view">
+                    <div class="toolbar">
+                        <h2>Stores</h2>
+                        <div class="toolbar-actions">
+                            <input id="stores-search" type="search" placeholder="Buscar por nombre/pais">
+                            <button id="btn-new-store" class="primary-btn" type="button">Add Store</button>
+                        </div>
+                    </div>
+
+                    <article class="panel">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Image</th>
+                                        <th>Name</th>
+                                        <th>Country</th>
+                                        <th>Temperature</th>
+                                        <th>Humidity</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stores-tbody"></tbody>
+                            </table>
+                        </div>
+                        <p id="stores-empty" class="empty-state">No stores available.</p>
+                    </article>
+                </section>
             </section>
 
-            <!-- Notifications Panel -->
-            <section class="notifications-panel">
-                <h2>📬 Notificaciones en Tiempo Real</h2>
-                
-                <!-- Filters -->
+            <aside class="notifications-panel">
+                <h3>Notificaciones en Tiempo Real</h3>
+
+                <div class="mini-stats">
+                    <span>Clientes: <strong id="client-count">0</strong></span>
+                    <span>Eventos: <strong id="notification-count">0</strong></span>
+                    <span>Ult. update: <strong id="last-update">--:--:--</strong></span>
+                </div>
+
                 <div class="filter-controls">
-                    <button id="filter-all" class="filter-btn active">Todas</button>
-                    <button id="filter-price" class="filter-btn">💲 Cambio Precio</button>
-                    <button id="filter-stock" class="filter-btn">⚠️ Bajo Stock</button>
-                    <button id="clear-notifications" class="filter-btn clear-btn">Limpiar</button>
+                    <button id="filter-all" class="filter-btn active" type="button">Todas</button>
+                    <button id="filter-price" class="filter-btn" type="button">Precio</button>
+                    <button id="filter-stock" class="filter-btn" type="button">Stock</button>
+                    <button id="clear-notifications" class="filter-btn clear-btn" type="button">Limpiar</button>
                 </div>
 
-                <!-- Empty State -->
                 <div id="empty-state" class="empty-state">
-                    <p>Esperando notificaciones de Orion...</p>
-                    <small>Asegúrate de que el servidor está conectado y hay cambios en los datos</small>
+                    Esperando notificaciones de Orion...
                 </div>
+                <div id="notifications-container" class="notifications-list"></div>
 
-                <!-- Notifications List -->
-                <div id="notifications-container" class="notifications-list">
-                    <!-- Notifications will be inserted here -->
+                <div class="debug-panel">
+                    <p><strong>Client:</strong> <span id="client-id">--</span></p>
+                    <p><strong>Server:</strong> <span id="server-time">--</span></p>
+                    <p><strong>WS:</strong> <span id="websocket-status">--</span></p>
+                    <button id="reconnect-btn" class="chip-btn" type="button">Reconectar</button>
                 </div>
-            </section>
-
-            <!-- Debug Info -->
-            <section class="debug-panel">
-                <h3>🔧 Información de Conexión</h3>
-                <div class="debug-info">
-                    <p><strong>ID del Cliente:</strong> <span id="client-id">--</span></p>
-                    <p><strong>Hora del Servidor:</strong> <span id="server-time">--</span></p>
-                    <p><strong>WebSocket Estado:</strong> <span id="websocket-status">--</span></p>
-                </div>
-            </section>
+            </aside>
         </main>
 
-        <!-- Footer -->
         <footer class="footer">
-            <p>XDEI Práctica 2 - Notificaciones Orion con Flask-SocketIO | <a href="#" id="reconnect-btn">Reconectar</a></p>
+            <p>XDEI Práctica 2 - Issue #5 UI + Forms</p>
         </footer>
     </div>
 
+    <dialog id="product-modal" class="modal">
+        <form id="product-form" method="dialog" novalidate>
+            <h3 id="product-form-title">New Product</h3>
+            <input id="product-id" name="id" type="hidden">
+
+            <label>Name
+                <input id="product-name" name="name" type="text" required minlength="2">
+                <span class="field-error" data-error-for="product-name"></span>
+            </label>
+
+            <label>Color
+                <div class="row-inline">
+                    <input id="product-color" name="color" type="color" value="#FF0000" required>
+                    <input id="product-color-text" name="colorText" type="text" pattern="^#[0-9A-Fa-f]{6}$" value="#FF0000" required>
+                </div>
+                <span class="field-error" data-error-for="product-color-text"></span>
+            </label>
+
+            <label>Size
+                <select id="product-size" name="size" required>
+                    <option value="">Select size</option>
+                    <option value="XS">XS</option>
+                    <option value="S">S</option>
+                    <option value="M">M</option>
+                    <option value="L">L</option>
+                    <option value="XL">XL</option>
+                </select>
+                <span class="field-error" data-error-for="product-size"></span>
+            </label>
+
+            <label>Price
+                <input id="product-price" name="price" type="number" min="1" step="1" required>
+                <span class="field-error" data-error-for="product-price"></span>
+            </label>
+
+            <label>Image URL
+                <input id="product-image" name="image" type="url" placeholder="https://...">
+                <span class="field-error" data-error-for="product-image"></span>
+            </label>
+
+            <div class="modal-actions">
+                <button type="button" class="secondary-btn" data-close-modal="product-modal">Cancel</button>
+                <button id="product-submit" type="submit" class="primary-btn">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="employee-modal" class="modal">
+        <form id="employee-form" method="dialog" novalidate>
+            <h3 id="employee-form-title">New Employee</h3>
+            <input id="employee-id" name="id" type="hidden">
+
+            <label>Name
+                <input id="employee-name" name="name" type="text" required minlength="2">
+                <span class="field-error" data-error-for="employee-name"></span>
+            </label>
+
+            <label>Email
+                <input id="employee-email" name="email" type="email" required>
+                <span class="field-error" data-error-for="employee-email"></span>
+            </label>
+
+            <label>Date of contract
+                <input id="employee-date" name="dateOfContract" type="date" required>
+                <span class="field-error" data-error-for="employee-date"></span>
+            </label>
+
+            <label>Category
+                <select id="employee-category" name="category" required>
+                    <option value="">Select category</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Warehouse">Warehouse</option>
+                    <option value="Sales">Sales</option>
+                    <option value="CustomerSupport">CustomerSupport</option>
+                </select>
+                <span class="field-error" data-error-for="employee-category"></span>
+            </label>
+
+            <fieldset>
+                <legend>Skills</legend>
+                <label><input type="checkbox" name="skills" value="MachineryDriving"> MachineryDriving</label>
+                <label><input type="checkbox" name="skills" value="WritingReports"> WritingReports</label>
+                <label><input type="checkbox" name="skills" value="CustomerRelationships"> CustomerRelationships</label>
+                <span class="field-error" data-error-for="employee-skills"></span>
+            </fieldset>
+
+            <label>Username
+                <input id="employee-username" name="username" type="text" required minlength="3" pattern="^[A-Za-z0-9_]+$">
+                <span class="field-error" data-error-for="employee-username"></span>
+            </label>
+
+            <label>Password
+                <input id="employee-password" name="password" type="password" minlength="8">
+                <span class="field-error" data-error-for="employee-password"></span>
+            </label>
+
+            <label>Store
+                <select id="employee-store" name="refStore" required></select>
+                <span class="field-error" data-error-for="employee-store"></span>
+            </label>
+
+            <label>Image URL
+                <input id="employee-image" name="image" type="url" placeholder="https://...">
+                <span class="field-error" data-error-for="employee-image"></span>
+            </label>
+
+            <div class="modal-actions">
+                <button type="button" class="secondary-btn" data-close-modal="employee-modal">Cancel</button>
+                <button id="employee-submit" type="submit" class="primary-btn">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="store-modal" class="modal">
+        <form id="store-form" method="dialog" novalidate>
+            <h3 id="store-form-title">New Store</h3>
+            <input id="store-id" name="id" type="hidden">
+
+            <label>Name
+                <input id="store-name" name="name" type="text" required minlength="2">
+                <span class="field-error" data-error-for="store-name"></span>
+            </label>
+
+            <label>Country code
+                <input id="store-countryCode" name="countryCode" type="text" required minlength="2" maxlength="2" pattern="^[A-Za-z]{2}$">
+                <span class="field-error" data-error-for="store-countryCode"></span>
+            </label>
+
+            <label>Temperature
+                <input id="store-temperature" name="temperature" type="number" min="-50" max="50" step="0.1" required>
+                <span class="field-error" data-error-for="store-temperature"></span>
+            </label>
+
+            <label>Relative humidity
+                <input id="store-relativeHumidity" name="relativeHumidity" type="number" min="0" max="100" step="0.1" required>
+                <span class="field-error" data-error-for="store-relativeHumidity"></span>
+            </label>
+
+            <label>Telephone
+                <input id="store-telephone" name="telephone" type="tel">
+                <span class="field-error" data-error-for="store-telephone"></span>
+            </label>
+
+            <label>URL
+                <input id="store-url" name="url" type="url" placeholder="https://...">
+                <span class="field-error" data-error-for="store-url"></span>
+            </label>
+
+            <label>Capacity
+                <input id="store-capacity" name="capacity" type="number" min="0" step="1">
+                <span class="field-error" data-error-for="store-capacity"></span>
+            </label>
+
+            <label>Description
+                <textarea id="store-description" name="description" rows="3"></textarea>
+                <span class="field-error" data-error-for="store-description"></span>
+            </label>
+
+            <label>Image URL
+                <input id="store-image" name="image" type="url" placeholder="https://...">
+                <span class="field-error" data-error-for="store-image"></span>
+            </label>
+
+            <div class="modal-actions">
+                <button type="button" class="secondary-btn" data-close-modal="store-modal">Cancel</button>
+                <button id="store-submit" type="submit" class="primary-btn">Save</button>
+            </div>
+        </form>
+    </dialog>
+
     <script src="{{ url_for('static', filename='js/socket-client.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/router.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/products.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/employees.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/stores.js') }}"></script>
 </body>
 </html>
