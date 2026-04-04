@@ -84,6 +84,9 @@ function setFieldError(form, key, value) {
         url: "store-url",
         capacity: "store-capacity",
         description: "store-description",
+        longitude: "store-longitude",
+        latitude: "store-latitude",
+        location: "store-latitude",
     };
 
     const fieldId = map[key];

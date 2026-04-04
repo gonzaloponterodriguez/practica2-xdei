@@ -375,6 +375,37 @@ th {
     color: var(--text-muted);
 }
 
+.shelf-fill-wrap {
+    display: grid;
+    gap: 0.3rem;
+    min-width: 150px;
+}
+
+.shelf-fill-track {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: #dfe7ef;
+    overflow: hidden;
+}
+
+.shelf-fill-bar {
+    height: 100%;
+    border-radius: 999px;
+}
+
+.fill-low {
+    background: #2e9f6f;
+}
+
+.fill-medium {
+    background: #c88a16;
+}
+
+.fill-high {
+    background: #c44536;
+}
+
 .store-metrics {
     display: flex;
     gap: 1rem;
@@ -382,13 +413,84 @@ th {
     margin-bottom: 0.8rem;
 }
 
+.metric-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #f4f8fc;
+}
+
+.metric-chip i {
+    width: 18px;
+    text-align: center;
+}
+
+.metric-cold {
+    color: #216ab5;
+    border-color: #b5d1ee;
+}
+
+.metric-mild {
+    color: #2e7d4f;
+    border-color: #bce4ca;
+}
+
+.metric-hot {
+    color: #b84e1a;
+    border-color: #f0c5ad;
+}
+
+.metric-dry {
+    color: #9b691a;
+    border-color: #efd9b8;
+}
+
+.metric-normal {
+    color: #2e7d4f;
+    border-color: #bce4ca;
+}
+
+.metric-humid {
+    color: #1f6cae;
+    border-color: #bbd8f2;
+}
+
+.store-map-canvas {
+    width: 100%;
+    height: 260px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    margin-bottom: 0.9rem;
+    overflow: hidden;
+}
+
+.store-map-global {
+    height: 460px;
+}
+
+.map-store-card {
+    font-size: 0.86rem;
+    line-height: 1.3;
+}
+
 .tweets-panel ul {
     margin: 0.4rem 0 0;
-    padding-left: 1rem;
+    padding-left: 0;
+    list-style: none;
 }
 
 .tweets-panel li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
     margin-bottom: 0.25rem;
+}
+
+.tweets-panel li i {
+    margin-top: 0.1rem;
 }
 
 #inventory-item-submit:disabled {
@@ -461,6 +563,10 @@ th {
     gap: 0.5rem;
 }
 
+.row-inline-double {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 #store-inventory-form .row-inline {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -495,6 +601,10 @@ th {
     .notifications-panel {
         position: static;
         max-height: none;
+    }
+
+    .store-map-global {
+        height: 320px;
     }
 }
 

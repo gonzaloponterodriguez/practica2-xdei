@@ -4,6 +4,10 @@ const storesState = {
     selectedStoreId: null,
     groupedInventory: null,
     notifications: [],
+    detailMap: null,
+    detailMarker: null,
+    globalMap: null,
+    globalMarkers: [],
 };
 
 function formatMetric(value, suffix) {
@@ -18,6 +22,43 @@ function filterStores(list, term) {
         const haystack = `${item.name || ""} ${item.countryCode || ""}`.toLowerCase();
         return haystack.includes(query);
     });
+}
+
+function getStoreCoordinates(store) {
+    if (!store) return null;
+
+    if (typeof store.longitude === "number" && typeof store.latitude === "number") {
+        return { lon: store.longitude, lat: store.latitude };
+    }
+
+    const location = store.location;
+    if (location && location.type === "Point" && Array.isArray(location.coordinates) && location.coordinates.length === 2) {
+        const lon = Number(location.coordinates[0]);
+        const lat = Number(location.coordinates[1]);
+        if (!Number.isNaN(lon) && !Number.isNaN(lat)) {
+            return { lon, lat };
+        }
+    }
+
+    return null;
+}
+
+function fillLevelClass(percent) {
+    if (percent >= 80) return "fill-high";
+    if (percent >= 40) return "fill-medium";
+    return "fill-low";
+}
+
+function metricTemperatureClass(temp) {
+    if (temp >= 30) return "metric-hot";
+    if (temp <= 10) return "metric-cold";
+    return "metric-mild";
+}
+
+function metricHumidityClass(humidity) {
+    if (humidity >= 70) return "metric-humid";
+    if (humidity <= 30) return "metric-dry";
+    return "metric-normal";
 }
 
 function renderStores() {
@@ -52,6 +93,9 @@ async function loadStoresView() {
         const payload = await window.appApi.api.get("/api/stores");
         storesState.items = payload.data || [];
         renderStores();
+        if (window.location.hash.replace("#", "") === "store-map") {
+            renderStoresMap();
+        }
     } catch (err) {
         window.appApi.showAlert(err.message || "No se pudieron cargar las tiendas.");
     }
@@ -75,6 +119,9 @@ function openStoreModal(editing = null) {
         document.getElementById("store-capacity").value = editing.capacity ?? "";
         document.getElementById("store-description").value = editing.description || "";
         document.getElementById("store-image").value = editing.image || "";
+        const coords = getStoreCoordinates(editing);
+        document.getElementById("store-longitude").value = coords ? coords.lon : "";
+        document.getElementById("store-latitude").value = coords ? coords.lat : "";
     } else {
         storesState.editingId = null;
         document.getElementById("store-form-title").textContent = "New Store";
@@ -96,6 +143,8 @@ function collectStorePayload() {
         capacity: capacityValue === "" ? "" : Number(capacityValue),
         description: document.getElementById("store-description").value.trim(),
         image: document.getElementById("store-image").value.trim(),
+        longitude: Number(document.getElementById("store-longitude").value),
+        latitude: Number(document.getElementById("store-latitude").value),
     };
 }
 
@@ -125,6 +174,14 @@ function clientValidateStore(payload, form) {
     }
     if (payload.image && !/^https?:\/\//.test(payload.image)) {
         window.appApi.setFieldError(form, "image", "Image URL invalida.");
+        valid = false;
+    }
+    if (Number.isNaN(payload.longitude) || payload.longitude < -180 || payload.longitude > 180) {
+        window.appApi.setFieldError(form, "longitude", "Longitud entre -180 y 180.");
+        valid = false;
+    }
+    if (Number.isNaN(payload.latitude) || payload.latitude < -90 || payload.latitude > 90) {
+        window.appApi.setFieldError(form, "latitude", "Latitud entre -90 y 90.");
         valid = false;
     }
 
@@ -209,7 +266,94 @@ function renderStoreTweets(tweets = []) {
         return;
     }
 
-    ul.innerHTML = tweets.map((tweet) => `<li>${tweet}</li>`).join("");
+    ul.innerHTML = tweets.map((tweet) => `<li><i class="fa-brands fa-x-twitter"></i><span>${tweet}</span></li>`).join("");
+}
+
+function renderStoreDetailMap(store) {
+    const container = document.getElementById("store-detail-map");
+    if (!container || typeof L === "undefined") return;
+
+    const coords = getStoreCoordinates(store);
+    if (!coords) {
+        container.innerHTML = '<p class="empty-state">This store has no coordinates yet.</p>';
+        if (storesState.detailMap) {
+            storesState.detailMap.remove();
+            storesState.detailMap = null;
+            storesState.detailMarker = null;
+        }
+        return;
+    }
+
+    if (!storesState.detailMap) {
+        storesState.detailMap = L.map("store-detail-map");
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap",
+        }).addTo(storesState.detailMap);
+    }
+
+    const latLng = [coords.lat, coords.lon];
+    storesState.detailMap.setView(latLng, 15);
+
+    if (storesState.detailMarker) {
+        storesState.detailMarker.setLatLng(latLng);
+    } else {
+        storesState.detailMarker = L.marker(latLng).addTo(storesState.detailMap);
+    }
+
+    storesState.detailMarker.bindPopup(`<strong>${store.name || "Store"}</strong>`);
+    setTimeout(() => storesState.detailMap.invalidateSize(), 60);
+}
+
+function renderStoresMap() {
+    const canvas = document.getElementById("stores-map");
+    const empty = document.getElementById("stores-map-empty");
+    if (!canvas || typeof L === "undefined") return;
+
+    const locatedStores = storesState.items.filter((item) => Boolean(getStoreCoordinates(item)));
+    empty.style.display = locatedStores.length ? "none" : "block";
+
+    if (!storesState.globalMap) {
+        storesState.globalMap = L.map("stores-map");
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap",
+        }).addTo(storesState.globalMap);
+    }
+
+    storesState.globalMarkers.forEach((marker) => marker.remove());
+    storesState.globalMarkers = [];
+
+    const bounds = [];
+    locatedStores.forEach((store) => {
+        const coords = getStoreCoordinates(store);
+        if (!coords) return;
+
+        const latLng = [coords.lat, coords.lon];
+        bounds.push(latLng);
+
+        const marker = L.marker(latLng).addTo(storesState.globalMap);
+        const card = `<div class="map-store-card">
+            <strong>${store.name || "Store"}</strong><br>
+            ${store.countryCode || "-"}<br>
+            T: ${formatMetric(store.temperature, " C")} | H: ${formatMetric(store.relativeHumidity, " %")}
+        </div>`;
+        marker.bindPopup(card);
+        marker.on("mouseover", () => marker.openPopup());
+        marker.on("mouseout", () => marker.closePopup());
+        marker.on("click", () => {
+            openStoreDetail(store.id);
+        });
+        storesState.globalMarkers.push(marker);
+    });
+
+    if (bounds.length) {
+        storesState.globalMap.fitBounds(bounds, { padding: [24, 24] });
+    } else {
+        storesState.globalMap.setView([52.52, 13.405], 11);
+    }
+
+    setTimeout(() => storesState.globalMap.invalidateSize(), 60);
 }
 
 function renderStoreDetail() {
@@ -222,18 +366,36 @@ function renderStoreDetail() {
     document.getElementById("store-detail-title").textContent = `Store Detail: ${store.name || storesState.selectedStoreId || "-"}`;
     document.getElementById("store-detail-temp").textContent = formatMetric(store.temperature, " °C");
     document.getElementById("store-detail-humidity").textContent = formatMetric(store.relativeHumidity, " %");
+
+    const tempChip = document.getElementById("store-detail-temp-chip");
+    const humidityChip = document.getElementById("store-detail-humidity-chip");
+    tempChip.classList.remove("metric-cold", "metric-mild", "metric-hot");
+    humidityChip.classList.remove("metric-dry", "metric-normal", "metric-humid");
+    tempChip.classList.add(metricTemperatureClass(Number(store.temperature)));
+    humidityChip.classList.add(metricHumidityClass(Number(store.relativeHumidity)));
+
+    renderStoreDetailMap(store);
     renderStoreTweets(Array.isArray(store.tweets) ? store.tweets : []);
 
     const rows = [];
     shelves.forEach((shelf) => {
         const shelfName = shelf.shelfName || shelf.shelfId;
+        const fillPercent = shelf.fillPercent || 0;
+        const fillClass = fillLevelClass(fillPercent);
         rows.push(`<tr class="group-row">
             <td><strong>${shelfName}</strong></td>
             <td>-</td>
             <td>-</td>
             <td>-</td>
             <td>-</td>
-            <td><strong>${shelf.fillCount || 0}/${shelf.maxCapacity || 0} (${shelf.fillPercent || 0}%)</strong></td>
+            <td>
+                <div class="shelf-fill-wrap">
+                    <div class="shelf-fill-track">
+                        <div class="shelf-fill-bar ${fillClass}" style="width:${fillPercent}%"></div>
+                    </div>
+                    <strong>${shelf.fillCount || 0}/${shelf.maxCapacity || 0} (${fillPercent}%)</strong>
+                </div>
+            </td>
             <td>
                 <button class="chip-btn" data-edit-shelf="${shelf.shelfId}" data-edit-shelf-name="${shelfName}" data-edit-shelf-capacity="${shelf.maxCapacity || 0}">Edit Shelf</button>
                 <button class="chip-btn" data-add-store-inventory="${shelf.shelfId}" data-add-store-inventory-name="${shelfName}">Add InventoryItem</button>
@@ -483,6 +645,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupStoresEvents();
     await loadStoresView();
 
+    window.addEventListener("hashchange", () => {
+        if (window.location.hash.replace("#", "") === "store-map") {
+            renderStoresMap();
+        }
+    });
+
     document.addEventListener("app:product-price-changed", (ev) => {
         const detail = ev.detail || {};
         if (!storesState.selectedStoreId) return;
@@ -495,5 +663,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!storesState.selectedStoreId) return;
         const message = `${detail.entityId || "InventoryItem"}: stock=${detail.currentStock ?? "-"}, shelf=${detail.shelfStock ?? "-"}`;
         pushStoreNotification("stock", "Stock alert", message, detail.timestamp);
+    });
+
+    document.addEventListener("app:stores-updated", () => {
+        if (window.location.hash.replace("#", "") === "store-map") {
+            renderStoresMap();
+        }
     });
 });

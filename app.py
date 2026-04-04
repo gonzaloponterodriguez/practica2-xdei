@@ -248,7 +248,56 @@ def validate_store(data: dict[str, Any], partial: bool = False) -> tuple[bool, d
         if not (value.startswith("http://") or value.startswith("https://")):
             errors["image"] = "image must be a valid URL"
 
+    if "longitude" in data:
+        try:
+            longitude = float(data.get("longitude"))
+            if longitude < -180 or longitude > 180:
+                errors["longitude"] = "longitude must be between -180 and 180"
+        except (TypeError, ValueError):
+            errors["longitude"] = "longitude must be numeric"
+
+    if "latitude" in data:
+        try:
+            latitude = float(data.get("latitude"))
+            if latitude < -90 or latitude > 90:
+                errors["latitude"] = "latitude must be between -90 and 90"
+        except (TypeError, ValueError):
+            errors["latitude"] = "latitude must be numeric"
+
+    has_lon = "longitude" in data and str(data.get("longitude", "")).strip() != ""
+    has_lat = "latitude" in data and str(data.get("latitude", "")).strip() != ""
+    if has_lon != has_lat:
+        errors["location"] = "longitude and latitude must be provided together"
+
     return len(errors) == 0, errors
+
+
+def extract_store_location(data: dict[str, Any]) -> dict[str, Any] | None:
+    has_lon = "longitude" in data and str(data.get("longitude", "")).strip() != ""
+    has_lat = "latitude" in data and str(data.get("latitude", "")).strip() != ""
+    if not (has_lon and has_lat):
+        return None
+    return {
+        "type": "Point",
+        "coordinates": [float(data["longitude"]), float(data["latitude"])],
+    }
+
+
+def location_to_lon_lat(location_value: Any) -> dict[str, float] | None:
+    if not isinstance(location_value, dict):
+        return None
+    if location_value.get("type") != "Point":
+        return None
+    coordinates = location_value.get("coordinates")
+    if not isinstance(coordinates, list) or len(coordinates) != 2:
+        return None
+    try:
+        return {
+            "longitude": float(coordinates[0]),
+            "latitude": float(coordinates[1]),
+        }
+    except (TypeError, ValueError):
+        return None
 
 
 def build_product_entity(data: dict[str, Any], entity_id: str | None = None) -> dict[str, Any]:
@@ -379,6 +428,9 @@ def build_store_entity(data: dict[str, Any], entity_id: str | None = None) -> di
         payload["description"] = {"type": "Text", "value": str(data["description"]).strip()}
     if data.get("image"):
         payload["image"] = {"type": "URL", "value": str(data["image"]).strip()}
+    location = extract_store_location(data)
+    if location:
+        payload["location"] = {"type": "geo:json", "value": location}
     return payload
 
 
@@ -402,6 +454,9 @@ def build_store_attrs_for_patch(data: dict[str, Any]) -> dict[str, Any]:
         attrs["description"] = {"type": "Text", "value": str(data.get("description", "")).strip()}
     if "image" in data:
         attrs["image"] = {"type": "URL", "value": str(data.get("image", "")).strip()}
+    location = extract_store_location(data)
+    if location:
+        attrs["location"] = {"type": "geo:json", "value": location}
     return attrs
 
 
@@ -438,6 +493,21 @@ def get_stores():
         return jsonify({"status": "ok", "data": response.json()}), 200
     except requests.RequestException as exc:
         return api_error(f"Orion unavailable: {str(exc)}", 503)
+
+
+@app.route("/api/stores/<path:entity_id>", methods=["GET"])
+def get_store(entity_id: str):
+    try:
+        store = fetch_entity_key_values(entity_id)
+        location_data = location_to_lon_lat(store.get("location"))
+        payload = dict(store)
+        if location_data:
+            payload.update(location_data)
+        return jsonify({"status": "ok", "data": payload}), 200
+    except requests.RequestException as exc:
+        return api_error(f"Orion unavailable: {str(exc)}", 503)
+    except RuntimeError as exc:
+        return api_error(str(exc), 502)
 
 
 @app.route("/api/stores", methods=["POST"])
@@ -519,6 +589,7 @@ def get_store_inventory_grouped(entity_id: str):
                     "shelfId": shelf_id,
                     "shelfName": shelf_map[shelf_id].get("name", shelf_id),
                     "maxCapacity": int(shelf_map[shelf_id].get("maxCapacity", 0) or 0),
+                    "location": shelf_map[shelf_id].get("location"),
                     "fillCount": 0,
                     "items": [],
                 }
@@ -557,9 +628,14 @@ def get_store_inventory_grouped(entity_id: str):
                 "relativeHumidity": store.get("relativeHumidity"),
                 "tweets": store.get("tweets", []),
                 "image": store.get("image"),
+                "location": store.get("location"),
+                "address": store.get("address"),
             },
             "shelves": shelves_out,
         }
+        location_data = location_to_lon_lat(store.get("location"))
+        if location_data:
+            payload["store"].update(location_data)
         return jsonify({"status": "ok", "data": payload}), 200
     except requests.RequestException as exc:
         return api_error(f"Orion unavailable: {str(exc)}", 503)

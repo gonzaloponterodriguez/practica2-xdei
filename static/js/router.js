@@ -1,5 +1,7 @@
 function setActiveRoute(route) {
-    const navRoute = route === "product-detail" ? "products" : (route === "store-detail" ? "stores" : route);
+    const navRoute = route === "product-detail"
+        ? "products"
+        : (route === "store-detail" ? "stores" : route);
     document.querySelectorAll(".nav-link").forEach((link) => {
         link.classList.toggle("active", link.dataset.route === navRoute);
     });
@@ -10,7 +12,7 @@ function setActiveRoute(route) {
 
 function readRouteFromHash() {
     const route = location.hash.replace("#", "") || "home";
-    return ["home", "products", "product-detail", "stores", "store-detail", "employees"].includes(route)
+    return ["home", "products", "product-detail", "stores", "store-detail", "store-map", "employees"].includes(route)
         ? route
         : "home";
 }

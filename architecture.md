@@ -528,3 +528,29 @@ Implementado en la rama `feature/vista-store-core`:
 - **Eventos tiempo real en detalle de Store:**
   - Integración con `product_price_changed` y `stock_alert` para poblar panel local de notificaciones.
   - Extensión del cliente Socket.IO para emitir evento interno `app:stock-alert`.
+
+---
+
+## 15. Estado de Implementación del Issue #11
+
+Implementado en la rama `feature/store-part-a-map-ui`:
+
+- **Soporte geoespacial en capa backend (Flask):**
+  - Validación de `longitude`/`latitude` en `Store`.
+  - Conversión de coordenadas a `location` NGSIv2 (`geo:json Point`).
+  - Nuevo endpoint `GET /api/stores/<id>` para lectura de detalle individual.
+  - Enriquecimiento de `GET /api/stores/<id>/inventory-grouped` con datos de ubicación del Store.
+
+- **Mapa Leaflet en frontend:**
+  - Integración de Leaflet por CDN en la aplicación.
+  - Mapa en `store-detail` centrado en la tienda seleccionada.
+  - Nueva vista `store-map` con markers para todas las tiendas con coordenadas.
+  - Comportamiento de markers: hover con popup resumen y click para navegar a detalle.
+
+- **Mejoras visuales en Store detail:**
+  - Barra de progreso de llenado por Shelf con codificación cromática por umbrales.
+  - Chips de temperatura/humedad con iconografía y estados visuales por rango.
+  - Tweets con icono estilo X para mejorar legibilidad visual.
+
+- **Decisión de alcance:**
+  - Three.js se deja fuera del Issue #11 y se implementará en un issue posterior (Part B).

@@ -242,3 +242,24 @@ Sistema de gestión de inventario inteligente basado en FIWARE para múltiples t
    - `PATCH /api/shelves/<id>`
    - `POST /api/stores/<id>/inventory-items`
    - `POST /api/inventory-items/<id>/buy`
+
+### Issue #11 - Vista Store Part A: mapas Leaflet y mejoras visuales (implementado)
+
+- Se incorpora soporte de coordenadas en formularios de Store (`longitude`, `latitude`) con validaciones de rango.
+- Se habilita mapa Leaflet en `Store Detail` mostrando ubicación de la tienda con marcador.
+- Se añade nueva vista `Stores Map` con marcadores de todas las tiendas que tienen coordenadas.
+- Interacción en mapa global:
+   - Hover de marcador muestra tarjeta resumen del Store.
+   - Click en marcador navega a la vista de detalle del Store.
+- Mejora visual de `Shelf` en Store Detail:
+   - Barra de llenado por nivel (`fillPercent`) con semáforo de color (bajo/medio/alto).
+- Mejora visual de métricas ambientales:
+   - Temperatura y humedad con iconos y estilos por rangos.
+- Mejora visual de tweets:
+   - Cada tweet se muestra con icono estilo X.
+- Endpoints backend añadidos/extendidos:
+   - `GET /api/stores/<id>`
+   - `POST/PATCH /api/stores` extendidos para persistir `location` geo:json desde lon/lat.
+   - `GET /api/stores/<id>/inventory-grouped` enriquecido con `location` y `address` del Store.
+- Fuera de alcance explícito de este issue:
+   - Recorrido inmersivo con Three.js (queda para Part B).
