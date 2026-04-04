@@ -148,6 +148,12 @@ class NotificationsClient {
                 detail: notification.data
             }));
         }
+
+        if (notification.type === 'stock') {
+            document.dispatchEvent(new CustomEvent('app:stock-alert', {
+                detail: notification.data
+            }));
+        }
     }
 
     renderNotifications() {

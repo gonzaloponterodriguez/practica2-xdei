@@ -213,6 +213,52 @@ classDiagram
                         <p id="stores-empty" class="empty-state">No stores available.</p>
                     </article>
                 </section>
+
+                <section id="view-store-detail" class="view">
+                    <div class="toolbar">
+                        <h2 id="store-detail-title">Store Detail</h2>
+                        <div class="toolbar-actions">
+                            <button id="store-detail-back" class="secondary-btn" type="button">Back to Stores</button>
+                            <button id="btn-add-shelf" class="primary-btn" type="button">Add Shelf</button>
+                        </div>
+                    </div>
+
+                    <article class="panel">
+                        <div class="store-metrics" id="store-detail-metrics">
+                            <span>Temperature: <strong id="store-detail-temp">-</strong></span>
+                            <span>Humidity: <strong id="store-detail-humidity">-</strong></span>
+                        </div>
+                        <div class="tweets-panel">
+                            <h4>Tweets</h4>
+                            <ul id="store-detail-tweets"></ul>
+                        </div>
+                    </article>
+
+                    <article class="panel">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Shelf / Product</th>
+                                        <th>Price</th>
+                                        <th>Size</th>
+                                        <th>Color</th>
+                                        <th>Stock Count</th>
+                                        <th>Shelf Count</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="store-detail-tbody"></tbody>
+                            </table>
+                        </div>
+                        <p id="store-detail-empty" class="empty-state">No inventory items found for this store.</p>
+                    </article>
+
+                    <article class="panel">
+                        <h4>Store Notifications</h4>
+                        <div id="store-detail-notifications" class="notifications-list"></div>
+                    </article>
+                </section>
             </section>
 
             <aside class="notifications-panel">
@@ -416,6 +462,58 @@ classDiagram
             <div class="modal-actions">
                 <button type="button" class="secondary-btn" data-close-modal="store-modal">Cancel</button>
                 <button id="store-submit" type="submit" class="primary-btn">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="shelf-modal" class="modal">
+        <form id="shelf-form" method="dialog" novalidate>
+            <h3 id="shelf-form-title">Shelf</h3>
+            <input id="shelf-id" type="hidden">
+
+            <label>Name
+                <input id="shelf-name" type="text" required minlength="2">
+                <span class="field-error" data-error-for="shelf-name"></span>
+            </label>
+
+            <label>Max Capacity
+                <input id="shelf-max-capacity" type="number" min="1" step="1" required>
+                <span class="field-error" data-error-for="shelf-max-capacity"></span>
+            </label>
+
+            <div class="modal-actions">
+                <button type="button" class="secondary-btn" data-close-modal="shelf-modal">Cancel</button>
+                <button id="shelf-submit" type="submit" class="primary-btn">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="store-inventory-modal" class="modal">
+        <form id="store-inventory-form" method="dialog" novalidate>
+            <h3>Add InventoryItem to Shelf</h3>
+            <input id="store-inventory-shelf-id" type="hidden">
+
+            <label>Shelf
+                <input id="store-inventory-shelf-name" type="text" readonly>
+            </label>
+
+            <label>Product
+                <select id="store-inventory-product-select" required></select>
+                <span class="field-error" id="store-inventory-product-error"></span>
+            </label>
+
+            <div class="row-inline">
+                <label>Shelf Count
+                    <input id="store-inventory-shelf-count" type="number" min="0" step="1" value="1" required>
+                </label>
+                <label>Stock Count
+                    <input id="store-inventory-stock-count" type="number" min="0" step="1" value="1" required>
+                </label>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="secondary-btn" data-close-modal="store-inventory-modal">Cancel</button>
+                <button id="store-inventory-submit" type="submit" class="primary-btn">Add</button>
             </div>
         </form>
     </dialog>

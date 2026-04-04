@@ -744,3 +744,81 @@ Se aplica restricción de negocio en backend:
 - `POST /api/products/<id>/inventory-items`
 
 Estos endpoints no reemplazan el modelo NGSIv2; exponen proyecciones y operaciones auxiliares para satisfacer la UX de la Vista Product.
+
+---
+
+## 16. Operaciones Derivadas para Vista Store (Issue #9)
+
+Para soportar la vista de detalle de Store agrupada por Shelf se añadieron operaciones de lectura y escritura específicas.
+
+### 16.1 Agrupación de InventoryItems por Shelf
+
+**Objetivo:** construir una proyección de lectura para UI:
+
+```json
+{
+  "store": {
+    "id": "urn:ngsi-ld:Store:001",
+    "name": "Store A",
+    "temperature": 22.5,
+    "relativeHumidity": 47.0,
+    "tweets": ["tweet 1", "tweet 2"]
+  },
+  "shelves": [
+    {
+      "shelfId": "urn:ngsi-ld:Shelf:001",
+      "shelfName": "Corner Unit",
+      "maxCapacity": 100,
+      "fillCount": 54,
+      "fillPercent": 54,
+      "items": [
+        {
+          "inventoryItemId": "urn:ngsi-ld:InventoryItem:001",
+          "productId": "urn:ngsi-ld:Product:001",
+          "name": "Apples",
+          "price": 99,
+          "size": "M",
+          "color": "#FF5733",
+          "stockCount": 70,
+          "shelfCount": 12
+        }
+      ]
+    }
+  ]
+}
+```
+
+### 16.2 Products elegibles por Shelf
+
+Para un `Store` y `Shelf` dados, solo se permiten Products no presentes todavía en esa Shelf.
+
+Regla aplicada:
+
+- `availableProducts = Products - ProductsYaPresentesEn(Store,Shelf)`
+
+### 16.3 Regla de unicidad lógica en InventoryItem
+
+Se mantiene la restricción de negocio:
+
+- No crear `InventoryItem` si existe uno con la combinación `refStore + refShelf + refProduct`.
+
+### 16.4 Operación de compra unitaria
+
+La compra de una unidad utiliza actualización atómica en Orion:
+
+```json
+PATCH /v2/entities/<inventoryItemId>/attrs
+{
+  "shelfCount": {"type": "Integer", "value": {"$inc": -1}},
+  "stockCount": {"type": "Integer", "value": {"$inc": -1}}
+}
+```
+
+### 16.5 Endpoints añadidos para esta vista
+
+- `GET /api/stores/<id>/inventory-grouped`
+- `GET /api/stores/<id>/available-products?shelfId=<id>`
+- `POST /api/stores/<id>/shelves`
+- `PATCH /api/shelves/<id>`
+- `POST /api/stores/<id>/inventory-items`
+- `POST /api/inventory-items/<id>/buy`

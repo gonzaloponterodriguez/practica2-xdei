@@ -1,6 +1,9 @@
 const storesState = {
     items: [],
     editingId: null,
+    selectedStoreId: null,
+    groupedInventory: null,
+    notifications: [],
 };
 
 function formatMetric(value, suffix) {
@@ -33,6 +36,7 @@ function renderStores() {
                 <td>${formatMetric(store.temperature, " °C")}</td>
                 <td>${formatMetric(store.relativeHumidity, " %")}</td>
                 <td>
+                    <button class="chip-btn" data-view-store="${store.id}">View</button>
                     <button class="chip-btn" data-edit-store="${store.id}">Edit</button>
                     <button class="chip-btn danger" data-delete-store="${store.id}">Delete</button>
                 </td>
@@ -173,14 +177,273 @@ async function deleteStore(entityId) {
     }
 }
 
+function renderStoreNotifications() {
+    const container = document.getElementById("store-detail-notifications");
+    if (!container) return;
+
+    if (!storesState.notifications.length) {
+        container.innerHTML = '<p class="empty-state">No notifications for this store yet.</p>';
+        return;
+    }
+
+    container.innerHTML = storesState.notifications
+        .map((item) => {
+            const ts = item.timestamp ? new Date(item.timestamp).toLocaleTimeString("es-ES") : "-";
+            return `<div class="notification-item ${item.type}">
+                <div class="notification-header">
+                    <span class="notification-title">${item.title}</span>
+                    <span class="notification-time">${ts}</span>
+                </div>
+                <div class="notification-body">${item.message}</div>
+            </div>`;
+        })
+        .join("");
+}
+
+function renderStoreTweets(tweets = []) {
+    const ul = document.getElementById("store-detail-tweets");
+    if (!ul) return;
+
+    if (!tweets.length) {
+        ul.innerHTML = "<li>-</li>";
+        return;
+    }
+
+    ul.innerHTML = tweets.map((tweet) => `<li>${tweet}</li>`).join("");
+}
+
+function renderStoreDetail() {
+    const tbody = document.getElementById("store-detail-tbody");
+    const empty = document.getElementById("store-detail-empty");
+    const payload = storesState.groupedInventory || {};
+    const store = payload.store || {};
+    const shelves = payload.shelves || [];
+
+    document.getElementById("store-detail-title").textContent = `Store Detail: ${store.name || storesState.selectedStoreId || "-"}`;
+    document.getElementById("store-detail-temp").textContent = formatMetric(store.temperature, " °C");
+    document.getElementById("store-detail-humidity").textContent = formatMetric(store.relativeHumidity, " %");
+    renderStoreTweets(Array.isArray(store.tweets) ? store.tweets : []);
+
+    const rows = [];
+    shelves.forEach((shelf) => {
+        const shelfName = shelf.shelfName || shelf.shelfId;
+        rows.push(`<tr class="group-row">
+            <td><strong>${shelfName}</strong></td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td><strong>${shelf.fillCount || 0}/${shelf.maxCapacity || 0} (${shelf.fillPercent || 0}%)</strong></td>
+            <td>
+                <button class="chip-btn" data-edit-shelf="${shelf.shelfId}" data-edit-shelf-name="${shelfName}" data-edit-shelf-capacity="${shelf.maxCapacity || 0}">Edit Shelf</button>
+                <button class="chip-btn" data-add-store-inventory="${shelf.shelfId}" data-add-store-inventory-name="${shelfName}">Add InventoryItem</button>
+            </td>
+        </tr>`);
+
+        (shelf.items || []).forEach((item) => {
+            rows.push(`<tr class="child-row">
+                <td>${item.name || "-"}</td>
+                <td>${item.price ?? "-"}</td>
+                <td>${item.size || "-"}</td>
+                <td>${item.color || "-"}</td>
+                <td>${item.stockCount ?? 0}</td>
+                <td>${item.shelfCount ?? 0}</td>
+                <td>
+                    <button class="chip-btn" data-buy-inventory-item="${item.inventoryItemId}">Buy Unit</button>
+                </td>
+            </tr>`);
+        });
+    });
+
+    tbody.innerHTML = rows.join("");
+    empty.style.display = rows.length ? "none" : "block";
+    renderStoreNotifications();
+}
+
+async function loadStoreDetail(storeId) {
+    try {
+        const payload = await window.appApi.api.get(`/api/stores/${encodeURIComponent(storeId)}/inventory-grouped`);
+        storesState.groupedInventory = payload.data || { shelves: [] };
+        renderStoreDetail();
+    } catch (err) {
+        window.appApi.showAlert(err.message || "No se pudo cargar el detalle de la tienda.");
+    }
+}
+
+function openStoreDetail(storeId) {
+    storesState.selectedStoreId = storeId;
+    storesState.notifications = [];
+    window.location.hash = "#store-detail";
+    loadStoreDetail(storeId);
+}
+
+function openShelfModal(editing = null) {
+    const modal = document.getElementById("shelf-modal");
+    const form = document.getElementById("shelf-form");
+    window.appApi.clearFieldErrors(form);
+
+    if (editing) {
+        document.getElementById("shelf-form-title").textContent = "Edit Shelf";
+        document.getElementById("shelf-id").value = editing.id;
+        document.getElementById("shelf-name").value = editing.name || "";
+        document.getElementById("shelf-max-capacity").value = editing.maxCapacity ?? "";
+    } else {
+        document.getElementById("shelf-form-title").textContent = "New Shelf";
+        form.reset();
+        document.getElementById("shelf-id").value = "";
+    }
+
+    modal.showModal();
+}
+
+async function saveShelf(event) {
+    event.preventDefault();
+    const storeId = storesState.selectedStoreId;
+    if (!storeId) return;
+
+    const shelfId = document.getElementById("shelf-id").value.trim();
+    const name = document.getElementById("shelf-name").value.trim();
+    const maxCapacity = Number(document.getElementById("shelf-max-capacity").value);
+    const form = document.getElementById("shelf-form");
+    window.appApi.clearFieldErrors(form);
+
+    if (name.length < 2) {
+        const target = form.querySelector('[data-error-for="shelf-name"]');
+        if (target) target.textContent = "Minimo 2 caracteres.";
+        return;
+    }
+    if (!Number.isInteger(maxCapacity) || maxCapacity <= 0) {
+        const target = form.querySelector('[data-error-for="shelf-max-capacity"]');
+        if (target) target.textContent = "Capacidad entera mayor que 0.";
+        return;
+    }
+
+    try {
+        if (shelfId) {
+            await window.appApi.api.patch(`/api/shelves/${encodeURIComponent(shelfId)}`, {
+                name,
+                maxCapacity,
+            });
+            window.appApi.showAlert("Shelf updated", "success");
+        } else {
+            await window.appApi.api.post(`/api/stores/${encodeURIComponent(storeId)}/shelves`, {
+                name,
+                maxCapacity,
+            });
+            window.appApi.showAlert("Shelf created", "success");
+        }
+        window.appApi.closeDialogById("shelf-modal");
+        await loadStoreDetail(storeId);
+    } catch (err) {
+        window.appApi.showAlert(err.message || "No se pudo guardar la shelf.");
+    }
+}
+
+async function openStoreInventoryModal(shelfId, shelfName) {
+    const storeId = storesState.selectedStoreId;
+    if (!storeId) return;
+
+    const modal = document.getElementById("store-inventory-modal");
+    const select = document.getElementById("store-inventory-product-select");
+    const errorNode = document.getElementById("store-inventory-product-error");
+    const submitBtn = document.getElementById("store-inventory-submit");
+
+    document.getElementById("store-inventory-shelf-id").value = shelfId;
+    document.getElementById("store-inventory-shelf-name").value = shelfName || shelfId;
+    document.getElementById("store-inventory-shelf-count").value = 1;
+    document.getElementById("store-inventory-stock-count").value = 1;
+    errorNode.textContent = "";
+
+    try {
+        const payload = await window.appApi.api.get(
+            `/api/stores/${encodeURIComponent(storeId)}/available-products?shelfId=${encodeURIComponent(shelfId)}`
+        );
+        const products = payload.data || [];
+        if (!products.length) {
+            select.innerHTML = '<option value="">No available products</option>';
+            submitBtn.disabled = true;
+            errorNode.textContent = "No hay productos disponibles para esta shelf.";
+        } else {
+            select.innerHTML = products.map((product) => `<option value="${product.id}">${product.name}</option>`).join("");
+            submitBtn.disabled = false;
+        }
+        modal.showModal();
+    } catch (err) {
+        window.appApi.showAlert(err.message || "No se pudieron cargar productos disponibles.");
+    }
+}
+
+async function saveStoreInventoryItem(event) {
+    event.preventDefault();
+    const storeId = storesState.selectedStoreId;
+    if (!storeId) return;
+
+    const shelfId = document.getElementById("store-inventory-shelf-id").value;
+    const productId = document.getElementById("store-inventory-product-select").value;
+    const shelfCount = Number(document.getElementById("store-inventory-shelf-count").value);
+    const stockCount = Number(document.getElementById("store-inventory-stock-count").value);
+    const errorNode = document.getElementById("store-inventory-product-error");
+    errorNode.textContent = "";
+
+    if (!productId) {
+        errorNode.textContent = "Selecciona un producto.";
+        return;
+    }
+    if (!Number.isInteger(shelfCount) || shelfCount < 0 || !Number.isInteger(stockCount) || stockCount < 0) {
+        errorNode.textContent = "Stock y shelf deben ser enteros >= 0.";
+        return;
+    }
+
+    try {
+        await window.appApi.api.post(`/api/stores/${encodeURIComponent(storeId)}/inventory-items`, {
+            refShelf: shelfId,
+            refProduct: productId,
+            shelfCount,
+            stockCount,
+        });
+        window.appApi.closeDialogById("store-inventory-modal");
+        window.appApi.showAlert("InventoryItem creado", "success");
+        await loadStoreDetail(storeId);
+    } catch (err) {
+        errorNode.textContent = err.message || "No se pudo crear InventoryItem.";
+    }
+}
+
+async function buyInventoryItem(inventoryItemId) {
+    if (!storesState.selectedStoreId) return;
+    try {
+        await window.appApi.api.post(`/api/inventory-items/${encodeURIComponent(inventoryItemId)}/buy`, {});
+        window.appApi.showAlert("Purchase registered", "success");
+        await loadStoreDetail(storesState.selectedStoreId);
+    } catch (err) {
+        window.appApi.showAlert(err.message || "No se pudo registrar la compra.");
+    }
+}
+
+function pushStoreNotification(type, title, message, timestamp) {
+    storesState.notifications.unshift({ type, title, message, timestamp });
+    storesState.notifications = storesState.notifications.slice(0, 20);
+    if (window.location.hash.replace("#", "") === "store-detail") {
+        renderStoreNotifications();
+    }
+}
+
 function setupStoresEvents() {
     document.getElementById("btn-new-store").addEventListener("click", () => openStoreModal());
+    document.getElementById("btn-add-shelf").addEventListener("click", () => openShelfModal());
     document.getElementById("stores-search").addEventListener("input", renderStores);
     document.getElementById("store-form").addEventListener("submit", saveStore);
+    document.getElementById("shelf-form").addEventListener("submit", saveShelf);
+    document.getElementById("store-inventory-form").addEventListener("submit", saveStoreInventoryItem);
 
     document.getElementById("stores-tbody").addEventListener("click", (ev) => {
+        const viewId = ev.target.getAttribute("data-view-store");
         const editId = ev.target.getAttribute("data-edit-store");
         const deleteId = ev.target.getAttribute("data-delete-store");
+
+        if (viewId) {
+            openStoreDetail(viewId);
+        }
 
         if (editId) {
             const store = storesState.items.find((item) => item.id === editId);
@@ -191,9 +454,46 @@ function setupStoresEvents() {
             deleteStore(deleteId);
         }
     });
+
+    document.getElementById("store-detail-back").addEventListener("click", () => {
+        window.location.hash = "#stores";
+    });
+
+    document.getElementById("store-detail-tbody").addEventListener("click", (ev) => {
+        const editShelfId = ev.target.getAttribute("data-edit-shelf");
+        const editShelfName = ev.target.getAttribute("data-edit-shelf-name") || "";
+        const editShelfCapacity = Number(ev.target.getAttribute("data-edit-shelf-capacity") || 0);
+        const addShelfId = ev.target.getAttribute("data-add-store-inventory");
+        const addShelfName = ev.target.getAttribute("data-add-store-inventory-name") || "";
+        const buyId = ev.target.getAttribute("data-buy-inventory-item");
+
+        if (editShelfId) {
+            openShelfModal({ id: editShelfId, name: editShelfName, maxCapacity: editShelfCapacity });
+        }
+        if (addShelfId) {
+            openStoreInventoryModal(addShelfId, addShelfName);
+        }
+        if (buyId) {
+            buyInventoryItem(buyId);
+        }
+    });
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
     setupStoresEvents();
     await loadStoresView();
+
+    document.addEventListener("app:product-price-changed", (ev) => {
+        const detail = ev.detail || {};
+        if (!storesState.selectedStoreId) return;
+        const message = `${detail.productName || detail.entityId || "Product"}: €${detail.newPrice ?? "-"}`;
+        pushStoreNotification("price", "Price updated", message, detail.timestamp);
+    });
+
+    document.addEventListener("app:stock-alert", (ev) => {
+        const detail = ev.detail || {};
+        if (!storesState.selectedStoreId) return;
+        const message = `${detail.entityId || "InventoryItem"}: stock=${detail.currentStock ?? "-"}, shelf=${detail.shelfStock ?? "-"}`;
+        pushStoreNotification("stock", "Stock alert", message, detail.timestamp);
+    });
 });

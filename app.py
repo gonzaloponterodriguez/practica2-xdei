@@ -326,6 +326,39 @@ def fetch_entities_key_values(entity_type: str) -> list[dict[str, Any]]:
     return response.json()
 
 
+def fetch_entity_key_values(entity_id: str) -> dict[str, Any]:
+    encoded = encode_entity_id(entity_id)
+    response = orion_request("GET", f"/v2/entities/{encoded}", params={"options": "keyValues"})
+    if response.status_code >= 400:
+        raise RuntimeError(parse_orion_error(response))
+    return response.json()
+
+
+def build_shelf_entity(data: dict[str, Any], entity_id: str | None = None) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "type": "Shelf",
+        "name": {"type": "Text", "value": str(data["name"]).strip()},
+        "maxCapacity": {"type": "Integer", "value": int(data.get("maxCapacity", 100))},
+        "refStore": {"type": "Relationship", "value": str(data["refStore"]).strip()},
+    }
+    if entity_id:
+        payload["id"] = entity_id
+    if data.get("location"):
+        payload["location"] = {"type": "geo:json", "value": data["location"]}
+    return payload
+
+
+def build_shelf_attrs_for_patch(data: dict[str, Any]) -> dict[str, Any]:
+    attrs: dict[str, Any] = {}
+    if "name" in data:
+        attrs["name"] = {"type": "Text", "value": str(data["name"]).strip()}
+    if "maxCapacity" in data and str(data.get("maxCapacity", "")).strip() != "":
+        attrs["maxCapacity"] = {"type": "Integer", "value": int(data["maxCapacity"])}
+    if "location" in data:
+        attrs["location"] = {"type": "geo:json", "value": data["location"]}
+    return attrs
+
+
 def build_store_entity(data: dict[str, Any], entity_id: str | None = None) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "type": "Store",
@@ -456,6 +489,237 @@ def delete_store(entity_id: str):
         if response.status_code >= 400:
             return api_error(parse_orion_error(response), response.status_code)
         return jsonify({"status": "deleted", "data": {"id": entity_id}}), 200
+    except requests.RequestException as exc:
+        return api_error(f"Orion unavailable: {str(exc)}", 503)
+
+
+@app.route("/api/stores/<path:entity_id>/inventory-grouped", methods=["GET"])
+def get_store_inventory_grouped(entity_id: str):
+    try:
+        store = fetch_entity_key_values(entity_id)
+        shelves = fetch_entities_key_values("Shelf")
+        products = fetch_entities_key_values("Product")
+        inventories = fetch_entities_key_values("InventoryItem")
+
+        store_shelves = [s for s in shelves if s.get("refStore") == entity_id]
+        shelf_map = {s.get("id"): s for s in store_shelves}
+        product_map = {p.get("id"): p for p in products}
+
+        grouped: dict[str, dict[str, Any]] = {}
+        for inv in inventories:
+            if inv.get("refStore") != entity_id:
+                continue
+
+            shelf_id = inv.get("refShelf")
+            if shelf_id not in shelf_map:
+                continue
+
+            if shelf_id not in grouped:
+                grouped[shelf_id] = {
+                    "shelfId": shelf_id,
+                    "shelfName": shelf_map[shelf_id].get("name", shelf_id),
+                    "maxCapacity": int(shelf_map[shelf_id].get("maxCapacity", 0) or 0),
+                    "fillCount": 0,
+                    "items": [],
+                }
+
+            product_id = inv.get("refProduct")
+            product = product_map.get(product_id, {})
+            stock_count = int(inv.get("stockCount", inv.get("stock", 0) or 0))
+            shelf_count = int(inv.get("shelfCount", inv.get("shelfStock", 0) or 0))
+
+            grouped[shelf_id]["fillCount"] += shelf_count
+            grouped[shelf_id]["items"].append(
+                {
+                    "inventoryItemId": inv.get("id"),
+                    "productId": product_id,
+                    "name": product.get("name", product_id),
+                    "image": product.get("image"),
+                    "price": product.get("price"),
+                    "size": product.get("size"),
+                    "color": product.get("color"),
+                    "stockCount": stock_count,
+                    "shelfCount": shelf_count,
+                }
+            )
+
+        shelves_out = sorted(grouped.values(), key=lambda x: x["shelfName"])
+        for shelf_data in shelves_out:
+            shelf_data["items"] = sorted(shelf_data["items"], key=lambda x: x["name"] or "")
+            max_capacity = shelf_data.get("maxCapacity", 0)
+            shelf_data["fillPercent"] = int((shelf_data["fillCount"] / max_capacity) * 100) if max_capacity > 0 else 0
+
+        payload = {
+            "store": {
+                "id": store.get("id"),
+                "name": store.get("name"),
+                "temperature": store.get("temperature"),
+                "relativeHumidity": store.get("relativeHumidity"),
+                "tweets": store.get("tweets", []),
+                "image": store.get("image"),
+            },
+            "shelves": shelves_out,
+        }
+        return jsonify({"status": "ok", "data": payload}), 200
+    except requests.RequestException as exc:
+        return api_error(f"Orion unavailable: {str(exc)}", 503)
+    except RuntimeError as exc:
+        return api_error(str(exc), 502)
+
+
+@app.route("/api/stores/<path:entity_id>/available-products", methods=["GET"])
+def get_available_products_for_store_shelf(entity_id: str):
+    shelf_id = request.args.get("shelfId", "").strip()
+    if not shelf_id:
+        return api_error("shelfId query parameter is required", 400)
+
+    try:
+        products = fetch_entities_key_values("Product")
+        inventories = fetch_entities_key_values("InventoryItem")
+
+        used_product_ids = {
+            inv.get("refProduct")
+            for inv in inventories
+            if inv.get("refStore") == entity_id and inv.get("refShelf") == shelf_id
+        }
+
+        available = [
+            {"id": p.get("id"), "name": p.get("name", p.get("id"))}
+            for p in products
+            if p.get("id") not in used_product_ids
+        ]
+        available = sorted(available, key=lambda x: x["name"])
+        return jsonify({"status": "ok", "data": available}), 200
+    except requests.RequestException as exc:
+        return api_error(f"Orion unavailable: {str(exc)}", 503)
+    except RuntimeError as exc:
+        return api_error(str(exc), 502)
+
+
+@app.route("/api/stores/<path:entity_id>/shelves", methods=["POST"])
+def create_shelf_for_store(entity_id: str):
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name", "")).strip()
+    if len(name) < 2:
+        return api_error("Shelf name must have at least 2 characters", 400)
+
+    max_capacity = data.get("maxCapacity", 100)
+    try:
+        max_capacity = int(max_capacity)
+        if max_capacity <= 0:
+            return api_error("maxCapacity must be > 0", 400)
+    except (TypeError, ValueError):
+        return api_error("maxCapacity must be an integer", 400)
+
+    shelf_id = str(data.get("id") or f"urn:ngsi-ld:Shelf:{uuid4().hex[:8]}")
+    payload = build_shelf_entity(
+        {
+            "name": name,
+            "maxCapacity": max_capacity,
+            "refStore": entity_id,
+            "location": data.get("location"),
+        },
+        entity_id=shelf_id,
+    )
+
+    try:
+        response = orion_request("POST", "/v2/entities", payload=payload)
+        if response.status_code >= 400:
+            status_code = 409 if response.status_code == 422 else response.status_code
+            return api_error(parse_orion_error(response), status_code)
+        return jsonify({"status": "created", "data": {"id": shelf_id}}), 201
+    except requests.RequestException as exc:
+        return api_error(f"Orion unavailable: {str(exc)}", 503)
+
+
+@app.route("/api/shelves/<path:entity_id>", methods=["PATCH"])
+def update_shelf(entity_id: str):
+    data = request.get_json(silent=True) or {}
+    payload = build_shelf_attrs_for_patch(data)
+    if not payload:
+        return api_error("No valid attributes provided", 400)
+
+    try:
+        encoded = encode_entity_id(entity_id)
+        response = orion_request("PATCH", f"/v2/entities/{encoded}/attrs", payload=payload)
+        if response.status_code >= 400:
+            return api_error(parse_orion_error(response), response.status_code)
+        return jsonify({"status": "updated", "data": {"id": entity_id}}), 200
+    except requests.RequestException as exc:
+        return api_error(f"Orion unavailable: {str(exc)}", 503)
+
+
+@app.route("/api/stores/<path:entity_id>/inventory-items", methods=["POST"])
+def create_store_inventory_item(entity_id: str):
+    data = request.get_json(silent=True) or {}
+    ref_shelf = str(data.get("refShelf", "")).strip()
+    ref_product = str(data.get("refProduct", "")).strip()
+    if not ref_shelf or not ref_product:
+        return api_error("refShelf and refProduct are required", 400)
+
+    try:
+        shelves = fetch_entities_key_values("Shelf")
+        inventories = fetch_entities_key_values("InventoryItem")
+
+        shelf = next((s for s in shelves if s.get("id") == ref_shelf), None)
+        if not shelf:
+            return api_error("Shelf not found", 404)
+        if shelf.get("refStore") != entity_id:
+            return api_error("Shelf does not belong to the selected Store", 400)
+
+        duplicate = next(
+            (
+                item
+                for item in inventories
+                if item.get("refStore") == entity_id
+                and item.get("refShelf") == ref_shelf
+                and item.get("refProduct") == ref_product
+            ),
+            None,
+        )
+        if duplicate:
+            return api_error("InventoryItem already exists for this Store+Shelf+Product", 409)
+
+        shelf_count = int(data.get("shelfCount", 1))
+        stock_count = int(data.get("stockCount", shelf_count))
+        if shelf_count < 0 or stock_count < 0:
+            return api_error("stockCount and shelfCount must be >= 0", 400)
+
+        inventory_id = f"urn:ngsi-ld:InventoryItem:{uuid4().hex[:8]}"
+        payload = {
+            "id": inventory_id,
+            "type": "InventoryItem",
+            "refStore": {"type": "Relationship", "value": entity_id},
+            "refShelf": {"type": "Relationship", "value": ref_shelf},
+            "refProduct": {"type": "Relationship", "value": ref_product},
+            "stockCount": {"type": "Integer", "value": stock_count},
+            "shelfCount": {"type": "Integer", "value": shelf_count},
+        }
+
+        response = orion_request("POST", "/v2/entities", payload=payload)
+        if response.status_code >= 400:
+            status_code = 409 if response.status_code == 422 else response.status_code
+            return api_error(parse_orion_error(response), status_code)
+
+        return jsonify({"status": "created", "data": {"id": inventory_id}}), 201
+    except requests.RequestException as exc:
+        return api_error(f"Orion unavailable: {str(exc)}", 503)
+    except RuntimeError as exc:
+        return api_error(str(exc), 502)
+
+
+@app.route("/api/inventory-items/<path:entity_id>/buy", methods=["POST"])
+def buy_inventory_item_unit(entity_id: str):
+    try:
+        encoded = encode_entity_id(entity_id)
+        payload = {
+            "shelfCount": {"type": "Integer", "value": {"$inc": -1}},
+            "stockCount": {"type": "Integer", "value": {"$inc": -1}},
+        }
+        response = orion_request("PATCH", f"/v2/entities/{encoded}/attrs", payload=payload)
+        if response.status_code >= 400:
+            return api_error(parse_orion_error(response), response.status_code)
+        return jsonify({"status": "updated", "data": {"id": entity_id}}), 200
     except requests.RequestException as exc:
         return api_error(f"Orion unavailable: {str(exc)}", 503)
 

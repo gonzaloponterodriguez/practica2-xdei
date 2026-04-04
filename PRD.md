@@ -219,3 +219,26 @@ Sistema de gestión de inventario inteligente basado en FIWARE para múltiples t
    - `GET /api/products/<id>/available-shelves?storeId=<id>`
    - `POST /api/products/<id>/inventory-items`
 - Integración mantenida con notificaciones en tiempo real de Orion sin regresiones.
+
+### Issue #9 - Vista Store: detalle de inventario por Shelf y operaciones (implementado)
+
+- Nueva vista `Store Detail` accesible desde la tabla de Stores (botón `View`).
+- Tabla de `InventoryItems` agrupada por `Shelf`:
+   - Cabecera por Shelf con nombre, ocupación (`fillCount/maxCapacity`) y porcentaje de llenado.
+   - Filas hijas por Product con `price`, `size`, `color`, `stockCount`, `shelfCount`.
+- Operaciones habilitadas en la vista:
+   - Alta de Shelf en la tienda.
+   - Edición de Shelf existente (`name`, `maxCapacity`).
+   - Alta de InventoryItem para Shelf con selector dinámico de Products no presentes en esa Shelf.
+   - Compra de una unidad por InventoryItem (decremento atómico en Orion con `$inc: -1`).
+- Información contextual del Store:
+   - Temperatura y humedad mostradas en cabecera.
+   - Listado de `tweets` del Store.
+   - Panel de notificaciones del Store para eventos de precio y bajo stock.
+- Endpoints backend añadidos:
+   - `GET /api/stores/<id>/inventory-grouped`
+   - `GET /api/stores/<id>/available-products?shelfId=<id>`
+   - `POST /api/stores/<id>/shelves`
+   - `PATCH /api/shelves/<id>`
+   - `POST /api/stores/<id>/inventory-items`
+   - `POST /api/inventory-items/<id>/buy`
