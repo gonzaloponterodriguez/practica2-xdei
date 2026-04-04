@@ -319,6 +319,13 @@ def encode_entity_id(entity_id: str) -> str:
     return quote(entity_id, safe="")
 
 
+def fetch_entities_key_values(entity_type: str) -> list[dict[str, Any]]:
+    response = orion_request("GET", "/v2/entities", params={"type": entity_type, "options": "keyValues"})
+    if response.status_code >= 400:
+        raise RuntimeError(parse_orion_error(response))
+    return response.json()
+
+
 def build_store_entity(data: dict[str, Any], entity_id: str | None = None) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "type": "Store",
@@ -462,6 +469,142 @@ def list_products():
         return jsonify({"status": "ok", "data": response.json()}), 200
     except requests.RequestException as exc:
         return api_error(f"Orion unavailable: {str(exc)}", 503)
+
+
+@app.route("/api/products/<path:entity_id>/inventory-grouped", methods=["GET"])
+def get_product_inventory_grouped(entity_id: str):
+    try:
+        inventories = fetch_entities_key_values("InventoryItem")
+        stores = fetch_entities_key_values("Store")
+        shelves = fetch_entities_key_values("Shelf")
+
+        filtered = [item for item in inventories if item.get("refProduct") == entity_id]
+        store_map = {store.get("id"): store for store in stores}
+        shelf_map = {shelf.get("id"): shelf for shelf in shelves}
+
+        grouped: dict[str, dict[str, Any]] = {}
+        for item in filtered:
+            store_id = item.get("refStore")
+            shelf_id = item.get("refShelf")
+            if not store_id or not shelf_id:
+                continue
+
+            stock_count = int(item.get("stockCount", item.get("stock", 0)))
+            shelf_count = int(item.get("shelfCount", item.get("shelfStock", 0)))
+
+            if store_id not in grouped:
+                grouped[store_id] = {
+                    "storeId": store_id,
+                    "storeName": store_map.get(store_id, {}).get("name", store_id),
+                    "stockCount": 0,
+                    "shelves": [],
+                }
+
+            grouped[store_id]["stockCount"] += stock_count
+            grouped[store_id]["shelves"].append(
+                {
+                    "shelfId": shelf_id,
+                    "shelfName": shelf_map.get(shelf_id, {}).get("name", shelf_id),
+                    "shelfCount": shelf_count,
+                }
+            )
+
+        grouped_list = sorted(grouped.values(), key=lambda x: x["storeName"])
+        for group in grouped_list:
+            group["shelves"] = sorted(group["shelves"], key=lambda x: x["shelfName"])
+
+        return jsonify({"status": "ok", "data": {"productId": entity_id, "stores": grouped_list}}), 200
+    except requests.RequestException as exc:
+        return api_error(f"Orion unavailable: {str(exc)}", 503)
+    except RuntimeError as exc:
+        return api_error(str(exc), 502)
+
+
+@app.route("/api/products/<path:entity_id>/available-shelves", methods=["GET"])
+def get_available_shelves_for_product(entity_id: str):
+    store_id = request.args.get("storeId", "").strip()
+    if not store_id:
+        return api_error("storeId query parameter is required", 400)
+
+    try:
+        shelves = fetch_entities_key_values("Shelf")
+        inventories = fetch_entities_key_values("InventoryItem")
+
+        store_shelves = [shelf for shelf in shelves if shelf.get("refStore") == store_id]
+        used_shelf_ids = {
+            item.get("refShelf")
+            for item in inventories
+            if item.get("refProduct") == entity_id and item.get("refStore") == store_id
+        }
+
+        available = [
+            {"id": shelf.get("id"), "name": shelf.get("name", shelf.get("id"))}
+            for shelf in store_shelves
+            if shelf.get("id") not in used_shelf_ids
+        ]
+
+        return jsonify({"status": "ok", "data": available}), 200
+    except requests.RequestException as exc:
+        return api_error(f"Orion unavailable: {str(exc)}", 503)
+    except RuntimeError as exc:
+        return api_error(str(exc), 502)
+
+
+@app.route("/api/products/<path:entity_id>/inventory-items", methods=["POST"])
+def create_product_inventory_item(entity_id: str):
+    data = request.get_json(silent=True) or {}
+    ref_store = str(data.get("refStore", "")).strip()
+    ref_shelf = str(data.get("refShelf", "")).strip()
+    if not ref_store or not ref_shelf:
+        return api_error("refStore and refShelf are required", 400)
+
+    try:
+        shelves = fetch_entities_key_values("Shelf")
+        inventories = fetch_entities_key_values("InventoryItem")
+
+        shelf = next((s for s in shelves if s.get("id") == ref_shelf), None)
+        if not shelf:
+            return api_error("Shelf not found", 404)
+        if shelf.get("refStore") != ref_store:
+            return api_error("Shelf does not belong to the selected Store", 400)
+
+        duplicate = next(
+            (
+                item
+                for item in inventories
+                if item.get("refProduct") == entity_id and item.get("refShelf") == ref_shelf
+            ),
+            None,
+        )
+        if duplicate:
+            return api_error("InventoryItem already exists for this Product and Shelf", 409)
+
+        shelf_count = int(data.get("shelfCount", 1))
+        stock_count = int(data.get("stockCount", shelf_count))
+        if shelf_count < 0 or stock_count < 0:
+            return api_error("stockCount and shelfCount must be >= 0", 400)
+
+        inventory_id = f"urn:ngsi-ld:InventoryItem:{uuid4().hex[:8]}"
+        payload = {
+            "id": inventory_id,
+            "type": "InventoryItem",
+            "refStore": {"type": "Relationship", "value": ref_store},
+            "refShelf": {"type": "Relationship", "value": ref_shelf},
+            "refProduct": {"type": "Relationship", "value": entity_id},
+            "stockCount": {"type": "Integer", "value": stock_count},
+            "shelfCount": {"type": "Integer", "value": shelf_count},
+        }
+
+        response = orion_request("POST", "/v2/entities", payload=payload)
+        if response.status_code >= 400:
+            status_code = 409 if response.status_code == 422 else response.status_code
+            return api_error(parse_orion_error(response), status_code)
+
+        return jsonify({"status": "created", "data": {"id": inventory_id}}), 201
+    except requests.RequestException as exc:
+        return api_error(f"Orion unavailable: {str(exc)}", 503)
+    except RuntimeError as exc:
+        return api_error(str(exc), 502)
 
 
 @app.route("/api/products", methods=["POST"])

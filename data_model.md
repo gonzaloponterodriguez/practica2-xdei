@@ -694,3 +694,53 @@ La implementación del Issue #5 añade una capa de normalización entre formular
 - `PATCH/DELETE /api/employees/<id>`
 
 Estos endpoints permiten desacoplar la interfaz de usuario del formato NGSIv2 y centralizar la validación del modelo.
+
+---
+
+## 15. Operaciones Derivadas para Vista Product (Issue #7)
+
+Para soportar la vista de detalle de Product agrupada por Store/Shelf se añadieron operaciones derivadas de lectura y creación:
+
+### 15.1 Agrupación de InventoryItems por Product
+
+**Objetivo:** construir una estructura de lectura para UI:
+
+```json
+{
+  "productId": "urn:ngsi-ld:Product:001",
+  "stores": [
+    {
+      "storeId": "urn:ngsi-ld:Store:001",
+      "storeName": "Store A",
+      "stockCount": 128,
+      "shelves": [
+        {"shelfId": "urn:ngsi-ld:Shelf:unit001", "shelfName": "S001 Corner", "shelfCount": 8}
+      ]
+    }
+  ]
+}
+```
+
+La agregación suma `stockCount` por Store y mantiene `shelfCount` por Shelf.
+
+### 15.2 Shelves elegibles para alta de InventoryItem
+
+Para un `Product` y `Store` dados, la UI requiere solo Shelves donde ese Product todavía no exista.
+
+Regla aplicada:
+
+- `availableShelves = Shelves(refStore = storeId) - ShelvesUsadasPorProduct(refProduct = productId)`
+
+### 15.3 Regla de unicidad lógica
+
+Se aplica restricción de negocio en backend:
+
+- No crear `InventoryItem` si ya existe otro con la misma combinación `refProduct + refShelf`.
+
+### 15.4 Endpoints añadidos para esta vista
+
+- `GET /api/products/<id>/inventory-grouped`
+- `GET /api/products/<id>/available-shelves?storeId=<id>`
+- `POST /api/products/<id>/inventory-items`
+
+Estos endpoints no reemplazan el modelo NGSIv2; exponen proyecciones y operaciones auxiliares para satisfacer la UX de la Vista Product.
