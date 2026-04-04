@@ -554,3 +554,30 @@ Implementado en la rama `feature/store-part-a-map-ui`:
 
 - **Decisión de alcance:**
   - Three.js se deja fuera del Issue #11 y se implementará en un issue posterior (Part B).
+
+---
+
+## 16. Estado de Implementación del Issue #13
+
+Implementado en la rama `feature/store-part-b-threejs`:
+
+- **Motor 3D en frontend:**
+  - Nuevo módulo `static/js/store-3d.js` con clase dedicada para escena Three.js.
+  - Gestión de ciclo de vida: inicialización, render continuo, resize, y destrucción limpia al salir de la vista.
+
+- **Representación inmersiva procedural:**
+  - Construcción de layout de estanterías a partir de `shelves[]` de `GET /api/stores/<id>/inventory-grouped`.
+  - Render de productos por estantería con altura y color derivados de atributos de inventario/producto.
+  - Indicador visual de nivel de llenado por estantería dentro de la escena.
+
+- **Interacción y navegación 3D:**
+  - Controles pointer+wheel para orbitar y zoom sobre la escena.
+  - API de foco por estantería (`focusNextShelf`, `focusShelfById`) integrada con la tabla de Store detail.
+  - Botones UI para `Reset Camera` y `Focus Next Shelf`.
+
+- **Integración con Store detail existente:**
+  - `static/js/stores.js` actualiza y sincroniza escena 3D al cargar/refrescar Store detail.
+  - Sin cambios contractuales obligatorios en backend: reutilización de endpoint agregado ya existente.
+
+- **Decisión de diseño:**
+  - Se adopta estrategia procedural para entrega rápida y desacoplada de cambios de modelo.

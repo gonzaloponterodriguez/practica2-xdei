@@ -882,3 +882,51 @@ La vista `Stores Map` utiliza `GET /api/stores` y filtra client-side tiendas con
 Fuera de alcance de esta iteración:
 
 - Recorrido inmersivo Three.js (Issue Part B).
+
+---
+
+## 18. Operaciones Derivadas para Vista Store Part B (Issue #13)
+
+### 18.1 Proyección de datos para escena 3D
+
+La escena Three.js reutiliza la proyección existente de:
+
+- `GET /api/stores/<id>/inventory-grouped`
+
+Entrada mínima usada por el motor 3D:
+
+- `shelves[].shelfId`
+- `shelves[].shelfName`
+- `shelves[].fillCount`
+- `shelves[].maxCapacity`
+- `shelves[].fillPercent`
+- `shelves[].items[].name`
+- `shelves[].items[].color`
+- `shelves[].items[].stockCount`
+- `shelves[].items[].shelfCount`
+
+### 18.2 Layout procedural (sin metadata adicional)
+
+En esta iteración no se añaden nuevos atributos persistidos para geometría 3D.
+
+Regla aplicada:
+
+- El motor calcula posiciones de shelves en una cuadrícula determinista basada en el índice de cada shelf.
+
+Ventaja:
+
+- Entrega rápida sin migraciones de modelo.
+
+Limitación conocida:
+
+- La geometría no refleja aún distribución física real del almacén.
+
+### 18.3 Reglas visuales derivadas
+
+- Color de producto en 3D derivado de `Product.color` (`#RRGGBB`).
+- Altura de elemento producto derivada de `shelfCount`.
+- Indicador de llenado de shelf derivado de `fillPercent` con umbrales cromáticos.
+
+### 18.4 Evolución futura opcional
+
+Para mejorar fidelidad espacial en futuras iteraciones, se propone ampliar `Shelf` con metadata opcional (`aisle`, `row`, `depth`) y reemplazar layout procedural por layout dirigido por datos.

@@ -263,3 +263,20 @@ Sistema de gestión de inventario inteligente basado en FIWARE para múltiples t
    - `GET /api/stores/<id>/inventory-grouped` enriquecido con `location` y `address` del Store.
 - Fuera de alcance explícito de este issue:
    - Recorrido inmersivo con Three.js (queda para Part B).
+
+### Issue #13 - Vista Store Part B: recorrido inmersivo Three.js (implementado)
+
+- Se incorpora recorrido inmersivo 3D en la vista `Store Detail` usando Three.js.
+- El panel 3D representa procedimentalmente:
+   - Estanterías (`Shelf`) como módulos tridimensionales.
+   - Productos de cada estantería con codificación visual basada en `color`, `shelfCount` y `stockCount`.
+   - Nivel de llenado de estantería mediante indicador de color.
+- Se añaden controles de interacción:
+   - Rotación y zoom con puntero/rueda.
+   - Botón de reset de cámara.
+   - Botón para foco secuencial por estantería.
+- Integración con flujo existente de Store:
+   - Al cambiar de tienda se reconstruye la escena 3D con el nuevo payload.
+   - Al actualizar inventario (alta/compra) se refresca la representación 3D.
+- Estrategia de implementación acordada:
+   - Layout procedural sin ampliar metadata del modelo en esta iteración.
