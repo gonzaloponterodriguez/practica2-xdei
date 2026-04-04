@@ -6,6 +6,7 @@
     <title>Inventario FIWARE - Home, Products, Employees</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -110,6 +111,18 @@ classDiagram
                             <button id="btn-new-product" class="primary-btn" type="button">Add Product</button>
                         </div>
                     </div>
+
+                    <article class="panel">
+                        <div class="toolbar three-toolbar">
+                            <h4>Immersive Walkthrough</h4>
+                            <div class="toolbar-actions">
+                                <button id="btn-3d-reset" class="secondary-btn" type="button">Reset Camera</button>
+                                <button id="btn-3d-focus-next" class="secondary-btn" type="button">Focus Next Shelf</button>
+                            </div>
+                        </div>
+                        <div id="store-3d-canvas" class="store-3d-canvas" aria-label="Store immersive walkthrough"></div>
+                        <p id="store-3d-status" class="three-status">Move: drag pointer. Zoom: mouse wheel / touch pad.</p>
+                    </article>
 
                     <article class="panel">
                         <div class="table-wrap">
@@ -580,6 +593,7 @@ classDiagram
     <script src="{{ url_for('static', filename='js/router.js') }}"></script>
     <script src="{{ url_for('static', filename='js/products.js') }}"></script>
     <script src="{{ url_for('static', filename='js/employees.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/store-3d.js') }}"></script>
     <script src="{{ url_for('static', filename='js/stores.js') }}"></script>
 </body>
 </html>

@@ -8,6 +8,7 @@ const storesState = {
     detailMarker: null,
     globalMap: null,
     globalMarkers: [],
+    store3dView: null,
 };
 
 function formatMetric(value, suffix) {
@@ -356,6 +357,17 @@ function renderStoresMap() {
     setTimeout(() => storesState.globalMap.invalidateSize(), 60);
 }
 
+function ensureStore3DView() {
+    if (storesState.store3dView || typeof window.Store3DView !== "function") return;
+    storesState.store3dView = new window.Store3DView("store-3d-canvas", "store-3d-status");
+}
+
+function destroyStore3DView() {
+    if (!storesState.store3dView) return;
+    storesState.store3dView.destroy();
+    storesState.store3dView = null;
+}
+
 function renderStoreDetail() {
     const tbody = document.getElementById("store-detail-tbody");
     const empty = document.getElementById("store-detail-empty");
@@ -382,7 +394,7 @@ function renderStoreDetail() {
         const shelfName = shelf.shelfName || shelf.shelfId;
         const fillPercent = shelf.fillPercent || 0;
         const fillClass = fillLevelClass(fillPercent);
-        rows.push(`<tr class="group-row">
+        rows.push(`<tr class="group-row" data-shelf-group="${shelf.shelfId}">
             <td><strong>${shelfName}</strong></td>
             <td>-</td>
             <td>-</td>
@@ -419,6 +431,12 @@ function renderStoreDetail() {
 
     tbody.innerHTML = rows.join("");
     empty.style.display = rows.length ? "none" : "block";
+
+    ensureStore3DView();
+    if (storesState.store3dView) {
+        storesState.store3dView.renderStoreInventory(payload);
+    }
+
     renderStoreNotifications();
 }
 
@@ -618,10 +636,27 @@ function setupStoresEvents() {
     });
 
     document.getElementById("store-detail-back").addEventListener("click", () => {
+        destroyStore3DView();
         window.location.hash = "#stores";
     });
 
+    document.getElementById("btn-3d-reset").addEventListener("click", () => {
+        if (!storesState.store3dView) return;
+        storesState.store3dView.resetCamera();
+    });
+
+    document.getElementById("btn-3d-focus-next").addEventListener("click", () => {
+        if (!storesState.store3dView) return;
+        storesState.store3dView.focusNextShelf();
+    });
+
     document.getElementById("store-detail-tbody").addEventListener("click", (ev) => {
+        const shelfRow = ev.target.closest("tr[data-shelf-group]");
+        if (shelfRow && storesState.store3dView) {
+            const shelfId = shelfRow.getAttribute("data-shelf-group");
+            if (shelfId) storesState.store3dView.focusShelfById(shelfId);
+        }
+
         const editShelfId = ev.target.getAttribute("data-edit-shelf");
         const editShelfName = ev.target.getAttribute("data-edit-shelf-name") || "";
         const editShelfCapacity = Number(ev.target.getAttribute("data-edit-shelf-capacity") || 0);
@@ -646,8 +681,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadStoresView();
 
     window.addEventListener("hashchange", () => {
-        if (window.location.hash.replace("#", "") === "store-map") {
+        const route = window.location.hash.replace("#", "");
+        if (route === "store-map") {
             renderStoresMap();
+        }
+        if (route !== "store-detail") {
+            destroyStore3DView();
         }
     });
 
