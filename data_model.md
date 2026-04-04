@@ -822,3 +822,63 @@ PATCH /v2/entities/<inventoryItemId>/attrs
 - `PATCH /api/shelves/<id>`
 - `POST /api/stores/<id>/inventory-items`
 - `POST /api/inventory-items/<id>/buy`
+
+---
+
+## 17. Operaciones Derivadas para Vista Store Part A (Issue #11)
+
+### 17.1 Contrato de ubicación de Store en formularios
+
+Para facilitar captura de coordenadas en UI se añade contrato plano en API interna:
+
+```json
+{
+  "longitude": 13.3986,
+  "latitude": 52.5547
+}
+```
+
+El backend transforma a NGSIv2:
+
+```json
+"location": {
+  "type": "geo:json",
+  "value": {
+    "type": "Point",
+    "coordinates": [13.3986, 52.5547]
+  }
+}
+```
+
+Reglas de validación:
+
+- `longitude` en rango `[-180, 180]`
+- `latitude` en rango `[-90, 90]`
+- ambos deben enviarse juntos
+
+### 17.2 Endpoint de lectura individual de Store
+
+Se añade endpoint de proyección para detalle:
+
+- `GET /api/stores/<id>`
+
+La respuesta incluye los datos base del Store y, cuando aplica, `longitude` y `latitude` derivados de `location`.
+
+### 17.3 Enriquecimiento de lectura para Store Detail Map
+
+`GET /api/stores/<id>/inventory-grouped` se amplía con:
+
+- `store.location`
+- `store.address`
+- `store.longitude`
+- `store.latitude`
+
+Esto permite renderizar el mapa sin pedir datos adicionales.
+
+### 17.4 Operación de visualización global de tiendas en mapa
+
+La vista `Stores Map` utiliza `GET /api/stores` y filtra client-side tiendas con `location` válida para crear markers Leaflet.
+
+Fuera de alcance de esta iteración:
+
+- Recorrido inmersivo Three.js (Issue Part B).
