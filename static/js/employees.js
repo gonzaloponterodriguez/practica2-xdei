@@ -29,8 +29,29 @@ function skillBadges(skills) {
     if (!Array.isArray(skills)) return "-";
     return skills.map((skill) => {
         const label = window.appI18n ? window.appI18n.translateDomainValue("employeeSkill", skill) : skill;
-        return `<span class="badge">${label}</span>`;
+        const iconClass = skillIconClass(skill);
+        return `<span class="badge"><i class="fa-solid ${iconClass}" aria-hidden="true"></i> ${label}</span>`;
     }).join(" ");
+}
+
+function categoryIconClass(category) {
+    const map = {
+        Manager: "fa-user-tie",
+        Warehouse: "fa-warehouse",
+        Sales: "fa-cash-register",
+        CustomerSupport: "fa-headset",
+    };
+    return map[category] || "fa-user";
+}
+
+function skillIconClass(skill) {
+    const map = {
+        Inventory: "fa-boxes-stacked",
+        CustomerService: "fa-handshake",
+        Sales: "fa-chart-line",
+        Logistics: "fa-truck-fast",
+    };
+    return map[skill] || "fa-star";
 }
 
 function displayEmployeeCategory(category) {
@@ -50,12 +71,14 @@ function renderEmployees() {
 
     tbody.innerHTML = rows
         .map((e) => {
-            const photo = e.image ? `<img src="${e.image}" class="avatar" alt="${e.name}">` : "<span>-</span>";
+            const photo = e.image ? `<img src="${e.image}" class="avatar employee-photo" alt="${e.name}">` : "<span>-</span>";
+            const categoryLabel = displayEmployeeCategory(e.category) || "-";
+            const categoryIcon = categoryIconClass(e.category);
             return `<tr>
                 <td>${photo}</td>
                 <td>${e.name || "-"}</td>
                 <td>${e.email || "-"}</td>
-                <td>${displayEmployeeCategory(e.category) || "-"}</td>
+                <td><span class="category-chip"><i class="fa-solid ${categoryIcon}" aria-hidden="true"></i> ${categoryLabel}</span></td>
                 <td>${skillBadges(e.skills)}</td>
                 <td>${e.username || "-"}</td>
                 <td>${findStoreName(e.refStore)}</td>

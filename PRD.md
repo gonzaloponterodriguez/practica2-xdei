@@ -13,6 +13,7 @@
 **Actualización 2026-04-05:** `Store Detail` devuelve y representa siempre todas las `Shelf` de la tienda (aunque estén vacías), evitando vistas 3D sin contenido y manteniendo la agrupación por estantería en tabla.
 **Actualización 2026-04-05:** La carga de Three.js en `Store Detail` pasa a modo offline-first con recurso local (`static/js/vendor/three.min.js`) y fallback remoto opcional.
 **Actualización 2026-04-05:** El panel del recorrido 3D añade desglose por `Shelf` con productos almacenados y métricas por producto (`shelfCount` y `stockCount`) para trazabilidad completa del inventario en la vista inmersiva.
+**Actualización 2026-04-05:** Mejora visual aplicada en tablas y mapas: foto `Employee` con zoom hover, foto `Store` con zoom+rotación, iconografía compacta (`country` con bandera, `category/skills` con iconos Font Awesome) y `Stores Map` con marcadores de imagen y tarjeta enriquecida al pasar el ratón.
 
 ---
 

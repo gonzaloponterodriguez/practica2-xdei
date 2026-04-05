@@ -11,6 +11,7 @@
 **Actualización 2026-04-05:** El agregado `Store -> Shelf -> InventoryItem` expone también estanterías vacías para preservar navegación 3D y acciones por shelf aun sin productos asignados.
 **Actualización 2026-04-05:** Three.js se sirve desde estático local (`static/js/vendor/three.min.js`) para evitar fallos por CDN y asegurar render del recorrido 3D en entornos sin salida a Internet.
 **Actualización 2026-04-05:** El módulo `Store3DView` incorpora una leyenda sincronizada por estantería que lista productos con `shelfCount` y `stockCount`, reutilizando el mismo payload agregado de `Store Detail`.
+**Actualización 2026-04-05:** La capa de presentación incorpora render semántico visual en tablas (badges con iconos, banderas por país, swatches de color) y mapa Leaflet global con marcadores basados en imagen y popup enriquecido (imagen + métricas) con navegación directa al detalle de tienda.
 
 **Diagrama de Alto Nivel:**
 ```
