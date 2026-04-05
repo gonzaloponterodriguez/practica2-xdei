@@ -13,6 +13,7 @@
 **Actualización 2026-04-05:** El agregado de `Store Detail` incluye todas las `Shelf` del `Store` (rellenas o vacías), con `fillCount=0` y `items=[]` cuando no hay `InventoryItem` asociado.
 **Actualización 2026-04-05:** La visualización 3D de `Shelf` en Store Detail se desacopla de CDN externas al cargar Three.js desde recurso local del proyecto.
 **Actualización 2026-04-05:** En la visualización 3D se muestra desglose por estantería de productos con sus unidades por estantería (`shelfCount`) y unidades totales (`stockCount`), sin cambios en el esquema NGSIv2.
+**Actualización 2026-04-05:** La representación visual de atributos se amplía sin alterar el esquema NGSIv2: `Store.countryCode` se muestra con bandera, `Employee.category/skills` con iconografía, `Product.color` como swatch y `Store.image` como marcador visual en Leaflet global y tarjetas hover.
 
 ---
 

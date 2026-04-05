@@ -21,6 +21,51 @@ function formatMetric(value, suffix) {
     return `${value}${suffix}`;
 }
 
+function countryFlagHtml(countryCode, label) {
+    const normalized = String(countryCode || "").trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(normalized)) {
+        return `<i class="fa-solid fa-flag" aria-hidden="true"></i>`;
+    }
+    const lower = normalized.toLowerCase();
+    const alt = label || normalized;
+    return `<img class="country-flag" src="https://flagcdn.com/w20/${lower}.png" alt="${alt}" loading="lazy">`;
+}
+
+function colorSwatch(hex) {
+    if (!hex) return "-";
+    return `<span class="swatch" style="background:${hex}"></span> ${hex}`;
+}
+
+function buildStoreMapPopup(store) {
+    const image = store.image
+        ? `<img src="${store.image}" class="map-popup-image" alt="${store.name || "Store"}">`
+        : "<div class=\"map-popup-image map-popup-image-empty\"><i class=\"fa-solid fa-store\" aria-hidden=\"true\"></i></div>";
+
+    return `<article class="map-store-card">
+        ${image}
+        <div class="map-popup-info">
+            <h4>${store.name || "Store"}</h4>
+            <p>${countryFlagHtml(store.countryCode, store.name || "Store country")} ${store.countryCode || "-"}</p>
+            <p><i class="fa-solid fa-temperature-half" aria-hidden="true"></i> ${formatMetric(store.temperature, " °C")}</p>
+            <p><i class="fa-solid fa-droplet" aria-hidden="true"></i> ${formatMetric(store.relativeHumidity, " %")}</p>
+        </div>
+    </article>`;
+}
+
+function buildStoreMarkerIcon(store) {
+    const markerImage = store.image
+        ? `<img src="${store.image}" class="store-map-marker-image" alt="${store.name || "Store"}">`
+        : `<span class="store-map-marker-fallback"><i class="fa-solid fa-store" aria-hidden="true"></i></span>`;
+
+    return L.divIcon({
+        className: "store-map-marker",
+        html: `<div class="store-map-marker-wrap">${markerImage}</div>`,
+        iconSize: [54, 54],
+        iconAnchor: [27, 27],
+        popupAnchor: [0, -24],
+    });
+}
+
 function displayShelfName(name) {
     return window.appI18n ? window.appI18n.translateDomainValue("shelfName", name) : name;
 }
@@ -83,13 +128,15 @@ function renderStores() {
 
     tbody.innerHTML = rows
         .map((store) => {
-            const image = store.image ? `<img src="${store.image}" class="thumb" alt="${store.name}">` : "<span>-</span>";
+            const image = store.image ? `<img src="${store.image}" class="thumb store-photo" alt="${store.name}">` : "<span>-</span>";
+            const countryCode = (store.countryCode || "-").toUpperCase();
+            const country = `<span class="country-chip">${countryFlagHtml(countryCode, countryCode)} ${countryCode}</span>`;
             return `<tr>
                 <td>${image}</td>
                 <td>${store.name || "-"}</td>
-                <td>${store.countryCode || "-"}</td>
-                <td>${formatMetric(store.temperature, " °C")}</td>
-                <td>${formatMetric(store.relativeHumidity, " %")}</td>
+                <td>${country}</td>
+                <td><i class="fa-solid fa-temperature-half" aria-hidden="true"></i> ${formatMetric(store.temperature, " °C")}</td>
+                <td><i class="fa-solid fa-droplet" aria-hidden="true"></i> ${formatMetric(store.relativeHumidity, " %")}</td>
                 <td>
                     <button class="chip-btn" data-view-store="${store.id}">${t("actions.view")}</button>
                     <button class="chip-btn" data-edit-store="${store.id}">${t("actions.edit")}</button>
@@ -352,13 +399,12 @@ function renderStoresMap() {
         const latLng = [coords.lat, coords.lon];
         bounds.push(latLng);
 
-        const marker = L.marker(latLng).addTo(storesState.globalMap);
-        const card = `<div class="map-store-card">
-            <strong>${store.name || "Store"}</strong><br>
-            ${store.countryCode || "-"}<br>
-            ${t("storeDetail.temperature")}: ${formatMetric(store.temperature, " C")} | ${t("storeDetail.humidity")}: ${formatMetric(store.relativeHumidity, " %")}
-        </div>`;
-        marker.bindPopup(card);
+        const marker = L.marker(latLng, { icon: buildStoreMarkerIcon(store) }).addTo(storesState.globalMap);
+        marker.bindPopup(buildStoreMapPopup(store), {
+            closeButton: false,
+            className: "store-popup",
+            autoPanPaddingTopLeft: [24, 24],
+        });
         marker.on("mouseover", () => marker.openPopup());
         marker.on("mouseout", () => marker.closePopup());
         marker.on("click", () => {
@@ -505,7 +551,7 @@ function renderStoreDetail() {
                 <td>${image}</td>
                 <td>${item.price ?? "-"}</td>
                 <td>${item.size || "-"}</td>
-                <td>${item.color || "-"}</td>
+                <td>${colorSwatch(item.color)}</td>
                 <td>${item.stockCount ?? 0}</td>
                 <td>${item.shelfCount ?? 0}</td>
                 <td>
