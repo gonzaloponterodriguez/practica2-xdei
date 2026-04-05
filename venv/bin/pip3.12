@@ -1,4 +1,4 @@
-#!/home/pablo/xdei/practica2/venv/bin/python3
+#!/home/gonza/udc/xdei/P2/practica2-xdei/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys

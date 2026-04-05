@@ -16,7 +16,6 @@
 # 
 # see: https://github.com/FIWARE/helm-charts/
 #
-version: "3.8"
 services:
   # Orion is an NGSI-v2 context broker
   orion-v2:
@@ -25,6 +24,8 @@ services:
     image: quay.io/fiware/orion:${ORION_VERSION}
     hostname: orion
     container_name: fiware-orion
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - mongo-db
     networks:
@@ -61,7 +62,7 @@ services:
       - "DEBUG=tutorial:*"
       - "WEB_APP_PORT=${TUTORIAL_APP_PORT}" # Port used by the content provider proxy and web-app for viewing data
       - "IOTA_HTTP_HOST=iot-agent"
-      - "IOTA_HTTP_PORT=${IOTA_SOUTH_PORT}"
+      - "IOTA_HTTP_PORT=${IOTA_SOUTH_PORT:-4061}"
       - "DUMMY_DEVICES_PORT=${TUTORIAL_DUMMY_DEVICE_PORT}" # Port used by the dummy IOT devices to receive commands
       - "DUMMY_DEVICES_TRANSPORT=HTTP" # Default transport used by dummy Io devices
       - "DUMMY_DEVICES_API_KEY=4jggokgpepnvsb2uv4s40d59ov"
@@ -75,7 +76,7 @@ services:
   mongo-db:
     labels:
       org.fiware: 'tutorial'
-    image: mongo:${MONGO_DB_VERSION}
+    image: quay.io/mongodb/mongodb-community-server:${MONGO_DB_VERSION}.9-ubi8
     hostname: mongo-db
     container_name: db-mongo
     expose:

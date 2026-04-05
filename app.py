@@ -27,6 +27,39 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # Orion config
 ORION_URL = os.environ.get("ORION_URL", "http://localhost:1026").rstrip("/")
 ORION_HEADERS = {"Accept": "application/json"}
+ORION_LIST_LIMIT = int(os.environ.get("ORION_LIST_LIMIT", "1000"))
+STORE_QUERY_ATTRS = (
+    "name,address,location,url,telephone,countryCode,capacity,description,"
+    "temperature,relativeHumidity,tweets,image"
+)
+CONTEXT_PROVIDER_REGISTRATION_TEMPLATES: list[dict[str, Any]] = [
+    {
+        "description": "App bootstrap weather conditions for all stores",
+        "dataProvided": {
+            "attrs": ["temperature", "relativeHumidity"],
+        },
+        "provider": {
+            "http": {"url": "http://tutorial:3000/random/weatherConditions"},
+            "legacyForwarding": True,
+        },
+        "status": "active",
+    },
+    {
+        "description": "App bootstrap tweets for all stores",
+        "dataProvided": {
+            "attrs": ["tweets"],
+        },
+        "provider": {
+            "http": {"url": "http://tutorial:3000/catfacts/tweets"},
+            "legacyForwarding": True,
+        },
+        "status": "active",
+    },
+]
+LEGACY_PROVIDER_DESCRIPTIONS = {
+    "Weather conditions for all stores",
+    "Tweets for all stores",
+}
 
 # Runtime state
 connected_clients: dict[str, dict[str, Any]] = {}
@@ -80,6 +113,103 @@ def parse_orion_error(response: requests.Response) -> str:
         return body.get("description") or body.get("error") or response.text
     except Exception:
         return response.text or "Unknown Orion error"
+
+
+def ensure_context_provider_registrations() -> None:
+    """Register external Store providers once at startup (idempotent by description)."""
+    try:
+        stores_response = orion_request("GET", "/v2/entities", params={"type": "Store", "options": "keyValues"})
+        if stores_response.status_code >= 400:
+            logger.warning("Could not list Stores for provider registration: %s", parse_orion_error(stores_response))
+            return
+
+        stores_payload = stores_response.json()
+        store_entities = [
+            {"id": item.get("id"), "type": "Store"}
+            for item in stores_payload
+            if isinstance(item, dict) and item.get("id")
+        ]
+        if not store_entities:
+            logger.warning("No Store entities found; skipping context provider registration")
+            return
+
+        existing_response = orion_request("GET", "/v2/registrations")
+        if existing_response.status_code >= 400:
+            logger.warning("Could not list Orion registrations: %s", parse_orion_error(existing_response))
+            return
+
+        existing = existing_response.json()
+        existing_by_description = {
+            item.get("description", ""): item
+            for item in existing
+            if isinstance(item, dict) and item.get("description")
+        }
+
+        # Remove legacy registrations created with wrong provider URLs.
+        for description in LEGACY_PROVIDER_DESCRIPTIONS:
+            reg = existing_by_description.get(description)
+            if not reg:
+                continue
+            reg_id = reg.get("id")
+            if not reg_id:
+                continue
+            delete_response = orion_request("DELETE", f"/v2/registrations/{reg_id}")
+            if delete_response.status_code >= 400:
+                logger.warning("Failed deleting legacy registration '%s': %s", description, parse_orion_error(delete_response))
+            else:
+                logger.info("Legacy registration deleted: %s", description)
+
+        for template in CONTEXT_PROVIDER_REGISTRATION_TEMPLATES:
+            registration = {
+                "description": template["description"],
+                "dataProvided": {
+                    "entities": store_entities,
+                    "attrs": template["dataProvided"]["attrs"],
+                },
+                "provider": template["provider"],
+                "status": template["status"],
+            }
+            description = registration.get("description", "")
+            current = existing_by_description.get(description)
+            if current:
+                current_url = current.get("provider", {}).get("http", {}).get("url")
+                current_attrs = current.get("dataProvided", {}).get("attrs", [])
+                current_ids = [
+                    ent.get("id")
+                    for ent in current.get("dataProvided", {}).get("entities", [])
+                    if isinstance(ent, dict) and ent.get("id")
+                ]
+                expected_url = registration.get("provider", {}).get("http", {}).get("url")
+                expected_attrs = registration.get("dataProvided", {}).get("attrs", [])
+                expected_ids = [ent.get("id") for ent in store_entities]
+
+                same_url = current_url == expected_url
+                same_attrs = sorted(current_attrs) == sorted(expected_attrs)
+                same_ids = sorted(current_ids) == sorted(expected_ids)
+                if same_url and same_attrs and same_ids:
+                    logger.info("Context provider already registered: %s", description)
+                    continue
+
+                reg_id = current.get("id")
+                if reg_id:
+                    delete_response = orion_request("DELETE", f"/v2/registrations/{reg_id}")
+                    if delete_response.status_code >= 400:
+                        logger.warning("Failed replacing registration '%s': %s", description, parse_orion_error(delete_response))
+                        continue
+                    logger.info("Context provider registration replaced: %s", description)
+
+            response = orion_request("POST", "/v2/registrations", payload=registration)
+            if response.status_code >= 400:
+                logger.warning(
+                    "Failed to register context provider '%s': %s",
+                    description,
+                    parse_orion_error(response),
+                )
+                continue
+
+            logger.info("Context provider registered: %s", description)
+    except requests.RequestException as exc:
+        logger.warning("Orion unavailable while registering context providers: %s", str(exc))
 
 
 def validate_product(data: dict[str, Any], partial: bool = False) -> tuple[bool, dict[str, str]]:
@@ -369,7 +499,34 @@ def encode_entity_id(entity_id: str) -> str:
 
 
 def fetch_entities_key_values(entity_type: str) -> list[dict[str, Any]]:
-    response = orion_request("GET", "/v2/entities", params={"type": entity_type, "options": "keyValues"})
+    response = orion_request(
+        "GET",
+        "/v2/entities",
+        params={"type": entity_type, "options": "keyValues", "limit": ORION_LIST_LIMIT},
+    )
+    if response.status_code >= 400:
+        raise RuntimeError(parse_orion_error(response))
+    return response.json()
+
+
+def fetch_stores_key_values() -> list[dict[str, Any]]:
+    response = orion_request(
+        "GET",
+        "/v2/entities",
+        params={"type": "Store", "options": "keyValues", "attrs": STORE_QUERY_ATTRS, "limit": ORION_LIST_LIMIT},
+    )
+    if response.status_code >= 400:
+        raise RuntimeError(parse_orion_error(response))
+    return response.json()
+
+
+def fetch_store_key_values(entity_id: str) -> dict[str, Any]:
+    encoded = encode_entity_id(entity_id)
+    response = orion_request(
+        "GET",
+        f"/v2/entities/{encoded}",
+        params={"options": "keyValues", "attrs": STORE_QUERY_ATTRS},
+    )
     if response.status_code >= 400:
         raise RuntimeError(parse_orion_error(response))
     return response.json()
@@ -487,18 +644,18 @@ def get_summary():
 @app.route("/api/stores", methods=["GET"])
 def get_stores():
     try:
-        response = orion_request("GET", "/v2/entities", params={"type": "Store", "options": "keyValues"})
-        if response.status_code >= 400:
-            return api_error(parse_orion_error(response), 502)
-        return jsonify({"status": "ok", "data": response.json()}), 200
+        stores = fetch_stores_key_values()
+        return jsonify({"status": "ok", "data": stores}), 200
     except requests.RequestException as exc:
         return api_error(f"Orion unavailable: {str(exc)}", 503)
+    except RuntimeError as exc:
+        return api_error(str(exc), 502)
 
 
 @app.route("/api/stores/<path:entity_id>", methods=["GET"])
 def get_store(entity_id: str):
     try:
-        store = fetch_entity_key_values(entity_id)
+        store = fetch_store_key_values(entity_id)
         location_data = location_to_lon_lat(store.get("location"))
         payload = dict(store)
         if location_data:
@@ -566,7 +723,7 @@ def delete_store(entity_id: str):
 @app.route("/api/stores/<path:entity_id>/inventory-grouped", methods=["GET"])
 def get_store_inventory_grouped(entity_id: str):
     try:
-        store = fetch_entity_key_values(entity_id)
+        store = fetch_store_key_values(entity_id)
         shelves = fetch_entities_key_values("Shelf")
         products = fetch_entities_key_values("Product")
         inventories = fetch_entities_key_values("InventoryItem")
@@ -575,7 +732,17 @@ def get_store_inventory_grouped(entity_id: str):
         shelf_map = {s.get("id"): s for s in store_shelves}
         product_map = {p.get("id"): p for p in products}
 
-        grouped: dict[str, dict[str, Any]] = {}
+        grouped: dict[str, dict[str, Any]] = {
+            shelf_id: {
+                "shelfId": shelf_id,
+                "shelfName": shelf_data.get("name", shelf_id),
+                "maxCapacity": int(shelf_data.get("maxCapacity", 0) or 0),
+                "location": shelf_data.get("location"),
+                "fillCount": 0,
+                "items": [],
+            }
+            for shelf_id, shelf_data in shelf_map.items()
+        }
         for inv in inventories:
             if inv.get("refStore") != entity_id:
                 continue
@@ -583,16 +750,6 @@ def get_store_inventory_grouped(entity_id: str):
             shelf_id = inv.get("refShelf")
             if shelf_id not in shelf_map:
                 continue
-
-            if shelf_id not in grouped:
-                grouped[shelf_id] = {
-                    "shelfId": shelf_id,
-                    "shelfName": shelf_map[shelf_id].get("name", shelf_id),
-                    "maxCapacity": int(shelf_map[shelf_id].get("maxCapacity", 0) or 0),
-                    "location": shelf_map[shelf_id].get("location"),
-                    "fillCount": 0,
-                    "items": [],
-                }
 
             product_id = inv.get("refProduct")
             product = product_map.get(product_id, {})
@@ -1155,4 +1312,7 @@ def handle_get_status():
 
 if __name__ == "__main__":
     debug = os.environ.get("FLASK_ENV", "production") == "development"
+    should_bootstrap = (not debug) or os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    if should_bootstrap:
+        ensure_context_provider_registrations()
     socketio.run(app, host="0.0.0.0", port=5000, debug=debug)

@@ -3,6 +3,17 @@
 
 **Versión:** 1.1 | **Estado:** En Desarrollo
 
+**Actualización 2026-04-05:** Diagrama UML de Home sincronizado con el modelo completo de atributos de `Employee`, `Store` y `Product`.
+**Actualización 2026-04-05:** Registro automático al arranque de proveedores externos de `Store` (`temperature`, `relativeHumidity`, `tweets`) en Orion.
+**Actualización 2026-04-05:** Corrección de paginación NGSIv2 (`limit`) para evitar vistas truncadas y validación de conteos mínimos en `import-data`.
+**Actualización 2026-04-05:** Datos iniciales alineados con UI: `Employee.category` poblado y URL de imagen corregida para `Store:003`.
+**Actualización 2026-04-05:** Interfaz con soporte ES/EN mediante i18n en frontend y toggle de idioma persistente (`localStorage`), manteniendo toggle Dark/Light persistente.
+**Actualización 2026-04-05:** Sustituidas URLs de imagen de `Bananas` y `Coconuts` por recursos locales SVG (`static/img/banana.svg`, `static/img/coconut.svg`) para garantizar representación correcta de frutas con renderizado vectorial estable.
+**Actualización 2026-04-05:** Vista `Store Detail` ajustada para mostrar recorrido Three.js por tienda, tweets tras la tabla agrupada por `Shelf`, columna de imagen en filas de `Product` y refresco de precio en tiempo real en todas las vistas donde aparece.
+**Actualización 2026-04-05:** `Store Detail` devuelve y representa siempre todas las `Shelf` de la tienda (aunque estén vacías), evitando vistas 3D sin contenido y manteniendo la agrupación por estantería en tabla.
+**Actualización 2026-04-05:** La carga de Three.js en `Store Detail` pasa a modo offline-first con recurso local (`static/js/vendor/three.min.js`) y fallback remoto opcional.
+**Actualización 2026-04-05:** El panel del recorrido 3D añade desglose por `Shelf` con productos almacenados y métricas por producto (`shelfCount` y `stockCount`) para trazabilidad completa del inventario en la vista inmersiva.
+
 ---
 
 ## 1. Descripción General

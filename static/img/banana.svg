@@ -1,0 +1,43 @@
+<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#f5f5f5"/>
+  
+  <!-- Bunch of bananas -->
+  <g id="bananas">
+    <!-- Banana 1 (top-left) -->
+    <path d="M 80 120 Q 100 80 140 75 Q 160 73 170 90 Q 175 105 165 120" 
+          fill="#FFE135" stroke="#D4A100" stroke-width="2"/>
+    <ellipse cx="75" cy="125" rx="8" ry="6" fill="#D4A100"/>
+    <ellipse cx="175" cy="115" rx="6" ry="8" fill="#D4A100"/>
+    
+    <!-- Banana 2 (center) -->
+    <path d="M 120 140 Q 140 95 190 85 Q 210 82 220 105 Q 222 125 205 140" 
+          fill="#FFD700" stroke="#D4A100" stroke-width="2"/>
+    <ellipse cx="115" cy="145" rx="8" ry="6" fill="#D4A100"/>
+    <ellipse cx="225" cy="105" rx="6" ry="8" fill="#D4A100"/>
+    
+    <!-- Banana 3 (bottom-left) -->
+    <path d="M 90 160 Q 115 130 165 120 Q 185 118 195 140 Q 195 160 175 175" 
+          fill="#FFC700" stroke="#D4A100" stroke-width="2"/>
+    <ellipse cx="85" cy="165" rx="8" ry="6" fill="#D4A100"/>
+    <ellipse cx="200" cy="145" rx="6" ry="8" fill="#D4A100"/>
+    
+    <!-- Banana 4 (background) -->
+    <path d="M 140 155 Q 160 110 210 95 Q 230 90 240 115 Q 238 140 215 160" 
+          fill="#FFE680" stroke="#D4A100" stroke-width="2"/>
+    <ellipse cx="135" cy="160" rx="8" ry="6" fill="#D4A100"/>
+    <ellipse cx="245" cy="115" rx="6" ry="8" fill="#D4A100"/>
+    
+    <!-- Stem/Crown -->
+    <g id="stem">
+      <circle cx="130" cy="110" r="12" fill="#8B6914"/>
+      <circle cx="120" cy="105" r="8" fill="#9B7924"/>
+      <circle cx="145" cy="108" r="8" fill="#9B7924"/>
+    </g>
+  </g>
+  
+  <!-- Label -->
+  <text x="200" y="250" font-size="28" font-weight="bold" fill="#333" text-anchor="middle" font-family="Arial">
+    Bananas
+  </text>
+</svg>

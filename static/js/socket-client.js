@@ -21,7 +21,10 @@ class NotificationsClient {
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
             reconnectionAttempts: 10,
-            transports: ['websocket', 'polling']
+            // Werkzeug debug server is not a reliable websocket runtime.
+            // Polling keeps Socket.IO stable during local development.
+            transports: ['polling'],
+            upgrade: false
         });
 
         // Setup event listeners
@@ -32,6 +35,8 @@ class NotificationsClient {
     }
 
     setupEventListeners() {
+        const t = (key, params) => window.appI18n ? window.appI18n.t(key, params) : key;
+
         // Connection events
         this.socket.on('connect', () => {
             logger.info('[Socket] Connected');
@@ -42,23 +47,25 @@ class NotificationsClient {
         this.socket.on('connection_established', (data) => {
             logger.info('[Socket] Connection established:', data);
             document.getElementById('client-id').textContent = data.clientId;
-            this.showNotification('success', 'Conexión establecida', 'Conectado al servidor de notificaciones');
+            this.showNotification('success', t('notif.connection.title'), t('notif.connection.message'));
         });
 
         this.socket.on('disconnect', () => {
             logger.warn('[Socket] Disconnected');
             this.updateConnectionStatus(false);
-            this.showNotification('warning', 'Desconectado', 'Se perdió la conexión con el servidor');
+            this.showNotification('warning', t('notif.disconnected.title'), t('notif.disconnected.message'));
         });
 
         this.socket.on('connect_error', (error) => {
             logger.error('[Socket] Connection error:', error);
-            this.showNotification('error', 'Error de conexión', error.message);
+            this.showNotification('error', t('notif.connection.error'), error.message);
         });
 
         this.socket.on('pong', (data) => {
             logger.debug('[Socket] Pong received:', data);
-            document.getElementById('server-time').textContent = new Date(data.timestamp).toLocaleTimeString('es-ES');
+            document.getElementById('server-time').textContent = window.appI18n
+                ? window.appI18n.formatTime(data.timestamp)
+                : new Date(data.timestamp).toLocaleTimeString('es-ES');
         });
 
         // Notification events
@@ -66,8 +73,8 @@ class NotificationsClient {
             logger.info('[Event] product_price_changed:', data);
             this.addNotification({
                 type: 'price',
-                title: '💲 Cambio de Precio',
-                message: `${data.productName}: €${data.newPrice}`,
+                title: `💲 ${t('notif.price.title')}`,
+                message: t('notif.price.message', { product: data.productName, price: data.newPrice }),
                 data: data,
                 timestamp: new Date(data.timestamp)
             });
@@ -77,11 +84,26 @@ class NotificationsClient {
             logger.info('[Event] stock_alert:', data);
             this.addNotification({
                 type: 'stock',
-                title: '⚠️ Bajo Stock',
-                message: `Item ${data.entityId}: Stock=${data.currentStock} (Estantería=${data.shelfStock})`,
+                title: `⚠️ ${t('notif.stock.title')}`,
+                message: t('notif.stock.message', {
+                    entityId: data.entityId,
+                    currentStock: data.currentStock,
+                    shelfStock: data.shelfStock
+                }),
                 data: data,
                 timestamp: new Date(data.timestamp)
             });
+        });
+
+        document.addEventListener('app:language-changed', () => {
+            this.updateConnectionStatus(!!this.socket?.connected);
+            const lastUpdateNode = document.getElementById('last-update');
+            if (this.messageCount > 0 && lastUpdateNode?.textContent) {
+                lastUpdateNode.textContent = window.appI18n
+                    ? window.appI18n.formatTime(new Date())
+                    : new Date().toLocaleTimeString('es-ES');
+            }
+            this.renderNotifications();
         });
 
         this.socket.on('server_status', (data) => {
@@ -139,7 +161,9 @@ class NotificationsClient {
 
         this.messageCount++;
         document.getElementById('notification-count').textContent = this.messageCount;
-        document.getElementById('last-update').textContent = new Date().toLocaleTimeString('es-ES');
+        document.getElementById('last-update').textContent = window.appI18n
+            ? window.appI18n.formatTime(new Date())
+            : new Date().toLocaleTimeString('es-ES');
 
         this.renderNotifications();
 
@@ -180,13 +204,13 @@ class NotificationsClient {
             <div class="notification-item ${n.type}">
                 <div class="notification-header">
                     <span class="notification-title">${n.title}</span>
-                    <span class="notification-time">${n.timestamp.toLocaleTimeString('es-ES')}</span>
+                    <span class="notification-time">${window.appI18n ? window.appI18n.formatTime(n.timestamp) : n.timestamp.toLocaleTimeString('es-ES')}</span>
                 </div>
                 <div class="notification-body">
                     <p>${n.message}</p>
                 </div>
                 <div class="notification-details">
-                    <small><strong>Entity:</strong> ${n.data.entityId}</small>
+                    <small><strong>${window.appI18n ? window.appI18n.t('notifications.entity') : 'Entity'}:</strong> ${n.data.entityId}</small>
                 </div>
             </div>
         `).join('');
@@ -223,14 +247,14 @@ class NotificationsClient {
         if (connected) {
             statusIcon.classList.remove('disconnected');
             statusIcon.classList.add('connected');
-            statusText.textContent = 'Conectado';
-            websocketStatus.textContent = 'WebSocket ✓';
+            statusText.textContent = window.appI18n ? window.appI18n.t('status.connected') : 'Conectado';
+            websocketStatus.textContent = 'Socket.IO ✓';
             websocketStatus.style.color = '#4CAF50';
         } else {
             statusIcon.classList.remove('connected');
             statusIcon.classList.add('disconnected');
-            statusText.textContent = 'Desconectado';
-            websocketStatus.textContent = 'WebSocket ✗';
+            statusText.textContent = window.appI18n ? window.appI18n.t('status.disconnected') : 'Desconectado';
+            websocketStatus.textContent = 'Socket.IO ✗';
             websocketStatus.style.color = '#f44336';
         }
     }

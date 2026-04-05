@@ -2,18 +2,20 @@ class Store3DView {
     constructor(containerId, statusId) {
         this.container = document.getElementById(containerId);
         this.statusNode = document.getElementById(statusId);
+        this.legendNode = document.getElementById("store-3d-legend");
         this.renderer = null;
         this.scene = null;
         this.camera = null;
         this.animationId = null;
-        this.raycaster = new THREE.Raycaster();
-        this.pointer = new THREE.Vector2();
+        this.raycaster = null;
+        this.pointer = null;
         this.shelves = [];
         this.shelfMeshes = [];
         this.focusIndex = 0;
+        this.threeAvailable = typeof window.THREE !== "undefined";
 
         this.orbit = {
-            target: new THREE.Vector3(0, 1.2, 0),
+            target: null,
             radius: 14,
             theta: 0.8,
             phi: 0.9,
@@ -32,7 +34,23 @@ class Store3DView {
         this.onWheel = this.onWheel.bind(this);
         this.onClick = this.onClick.bind(this);
 
-        if (this.container && typeof THREE !== "undefined") {
+        if (!this.threeAvailable) {
+            if (this.statusNode) {
+                this.statusNode.textContent = window.appI18n
+                    ? window.appI18n.t("three.unavailable")
+                    : "3D view unavailable (Three.js not loaded).";
+            }
+            if (this.container) {
+                this.container.innerHTML = "";
+            }
+            return;
+        }
+
+        this.raycaster = new THREE.Raycaster();
+        this.pointer = new THREE.Vector2();
+        this.orbit.target = new THREE.Vector3(0, 1.2, 0);
+
+        if (this.container) {
             this.initScene();
         }
     }
@@ -68,6 +86,11 @@ class Store3DView {
         floor.rotation.x = -Math.PI / 2;
         floor.position.y = 0;
         this.scene.add(floor);
+
+        // Visual reference to avoid a flat/empty-looking scene.
+        const grid = new THREE.GridHelper(36, 18, 0x8aa0b4, 0xb8c5d1);
+        grid.position.y = 0.01;
+        this.scene.add(grid);
     }
 
     parseColor(hex) {
@@ -92,6 +115,56 @@ class Store3DView {
         const sprite = new THREE.Sprite(material);
         sprite.scale.set(2.8, 0.7, 1);
         return sprite;
+    }
+
+    escapeHtml(value) {
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    renderLegend(focusedShelfId = null) {
+        if (!this.legendNode) return;
+
+        if (!this.shelves.length) {
+            this.legendNode.innerHTML = `<p class="three-legend-empty">${window.appI18n ? window.appI18n.t("three.noShelves") : "No shelves to display."}</p>`;
+            return;
+        }
+
+        const shelfCountLabel = window.appI18n ? window.appI18n.t("productDetail.shelfCount") : "Shelf Count";
+        const stockCountLabel = window.appI18n ? window.appI18n.t("productDetail.stockCount") : "Stock Count";
+
+        this.legendNode.innerHTML = this.shelves.map((shelf) => {
+            const shelfName = window.appI18n
+                ? window.appI18n.translateDomainValue("shelfName", shelf.shelfName || shelf.shelfId)
+                : (shelf.shelfName || shelf.shelfId);
+            const isActive = focusedShelfId && shelf.shelfId === focusedShelfId;
+            const items = Array.isArray(shelf.items) ? shelf.items : [];
+
+            const listHtml = items.length
+                ? `<ul class="three-legend-list">${items.map((item) => {
+                    const productName = window.appI18n
+                        ? window.appI18n.translateDomainValue("productName", item.name || "-")
+                        : (item.name || "-");
+                    return `<li class="three-legend-item">
+                        <strong>${this.escapeHtml(productName)}</strong>
+                        - ${this.escapeHtml(shelfCountLabel)}: ${this.escapeHtml(item.shelfCount ?? 0)}
+                        | ${this.escapeHtml(stockCountLabel)}: ${this.escapeHtml(item.stockCount ?? 0)}
+                    </li>`;
+                }).join("")}</ul>`
+                : `<p class="three-legend-empty">${window.appI18n ? window.appI18n.t("three.noProductsInShelf") : "No products in this shelf."}</p>`;
+
+            return `<article class="three-legend-card${isActive ? " active" : ""}">
+                <div class="three-legend-head">
+                    <span class="three-legend-title">${this.escapeHtml(shelfName)}</span>
+                    <span>${this.escapeHtml(shelf.fillCount || 0)}/${this.escapeHtml(shelf.maxCapacity || 0)}</span>
+                </div>
+                ${listHtml}
+            </article>`;
+        }).join("");
     }
 
     clearSceneShelves() {
@@ -131,7 +204,10 @@ class Store3DView {
         fillIndicator.position.set(-(1.5 - (1.5 * Math.max(0.05, shelfFill / 100))), 0.25, 0.68);
         group.add(fillIndicator);
 
-        const label = this.makeLabelSprite(`${shelf.shelfName || shelf.shelfId} (${shelf.fillCount || 0}/${shelf.maxCapacity || 0})`);
+        const shelfName = window.appI18n
+            ? window.appI18n.translateDomainValue("shelfName", shelf.shelfName || shelf.shelfId)
+            : (shelf.shelfName || shelf.shelfId);
+        const label = this.makeLabelSprite(`${shelfName} (${shelf.fillCount || 0}/${shelf.maxCapacity || 0})`);
         label.position.set(0, 3.1, 0.6);
         group.add(label);
 
@@ -174,11 +250,22 @@ class Store3DView {
 
         if (this.statusNode) {
             const countProducts = shelves.reduce((acc, shelf) => acc + (Array.isArray(shelf.items) ? shelf.items.length : 0), 0);
-            this.statusNode.textContent = `Shelves: ${shelves.length} | Products: ${countProducts} | Drag to rotate, wheel to zoom.`;
+            if (!shelves.length) {
+                this.statusNode.textContent = window.appI18n
+                    ? window.appI18n.t("storeDetail.empty")
+                    : "No inventory items found for this store.";
+            } else {
+                this.statusNode.textContent = window.appI18n
+                    ? window.appI18n.t("three.summary", { shelves: shelves.length, products: countProducts })
+                    : `Shelves: ${shelves.length} | Products: ${countProducts} | Drag to rotate, wheel to zoom.`;
+            }
         }
+
+        this.renderLegend();
     }
 
     updateCameraPosition() {
+        if (!this.camera || !this.orbit.target) return;
         const x = this.orbit.target.x + this.orbit.radius * Math.sin(this.orbit.phi) * Math.cos(this.orbit.theta);
         const y = this.orbit.target.y + this.orbit.radius * Math.cos(this.orbit.phi);
         const z = this.orbit.target.z + this.orbit.radius * Math.sin(this.orbit.phi) * Math.sin(this.orbit.theta);
@@ -187,6 +274,7 @@ class Store3DView {
     }
 
     resetCamera() {
+        if (!this.orbit.target) return;
         this.orbit.radius = 14;
         this.orbit.theta = 0.8;
         this.orbit.phi = 0.9;
@@ -201,8 +289,14 @@ class Store3DView {
         this.orbit.target.set(next.group.position.x, 1.2, next.group.position.z);
         this.updateCameraPosition();
         if (this.statusNode) {
-            this.statusNode.textContent = `Focused shelf: ${next.group.userData.shelfName || next.shelfId}`;
+            const shelfName = window.appI18n
+                ? window.appI18n.translateDomainValue("shelfName", next.group.userData.shelfName || next.shelfId)
+                : (next.group.userData.shelfName || next.shelfId);
+            this.statusNode.textContent = window.appI18n
+                ? window.appI18n.t("three.focusedShelf", { shelf: shelfName })
+                : `Focused shelf: ${shelfName}`;
         }
+        this.renderLegend(next.shelfId);
     }
 
     focusShelfById(shelfId) {
@@ -213,8 +307,14 @@ class Store3DView {
         this.orbit.target.set(target.group.position.x, 1.2, target.group.position.z);
         this.updateCameraPosition();
         if (this.statusNode) {
-            this.statusNode.textContent = `Focused shelf: ${target.group.userData.shelfName || target.shelfId}`;
+            const shelfName = window.appI18n
+                ? window.appI18n.translateDomainValue("shelfName", target.group.userData.shelfName || target.shelfId)
+                : (target.group.userData.shelfName || target.shelfId);
+            this.statusNode.textContent = window.appI18n
+                ? window.appI18n.t("three.focusedShelf", { shelf: shelfName })
+                : `Focused shelf: ${shelfName}`;
         }
+        this.renderLegend(shelfId);
     }
 
     attachEvents() {
@@ -266,7 +366,7 @@ class Store3DView {
     }
 
     onClick(event) {
-        if (!this.renderer || !this.camera) return;
+        if (!this.renderer || !this.camera || !this.raycaster || !this.pointer) return;
         const rect = this.renderer.domElement.getBoundingClientRect();
         this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         this.pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -282,7 +382,19 @@ class Store3DView {
         const picked = intersects[0].object;
         const data = picked.userData || {};
         if (data.productName && this.statusNode) {
-            this.statusNode.textContent = `${data.productName} | stock=${data.stockCount ?? "-"} shelf=${data.shelfCount ?? "-"}`;
+            const productName = window.appI18n
+                ? window.appI18n.translateDomainValue("productName", data.productName)
+                : data.productName;
+            this.statusNode.textContent = window.appI18n
+                ? window.appI18n.t("three.pickedProduct", {
+                    product: productName,
+                    stock: data.stockCount ?? "-",
+                    shelf: data.shelfCount ?? "-",
+                })
+                : `${productName} | stock=${data.stockCount ?? "-"} shelf=${data.shelfCount ?? "-"}`;
+        }
+        if (data.shelfId) {
+            this.renderLegend(data.shelfId);
         }
     }
 
@@ -315,6 +427,9 @@ class Store3DView {
 
         this.shelfMeshes = [];
         this.shelves = [];
+        if (this.legendNode) {
+            this.legendNode.innerHTML = "";
+        }
         this.renderer = null;
         this.camera = null;
         this.scene = null;
