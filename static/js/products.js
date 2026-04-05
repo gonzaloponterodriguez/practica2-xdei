@@ -5,6 +5,10 @@ const productsState = {
     groupedInventory: null,
 };
 
+function t(key, params) {
+    return window.appI18n ? window.appI18n.t(key, params) : key;
+}
+
 function filterProducts(list, term) {
     if (!term) return list;
     const query = term.toLowerCase();
@@ -14,6 +18,14 @@ function filterProducts(list, term) {
 function colorSwatch(hex) {
     const value = hex || "#000000";
     return `<span class="swatch" style="background:${value}"></span> ${value}`;
+}
+
+function displayProductName(name) {
+    return window.appI18n ? window.appI18n.translateDomainValue("productName", name) : name;
+}
+
+function displayShelfName(name) {
+    return window.appI18n ? window.appI18n.translateDomainValue("shelfName", name) : name;
 }
 
 function renderProducts() {
@@ -27,14 +39,14 @@ function renderProducts() {
             const image = p.image ? `<img src="${p.image}" class="thumb" alt="${p.name}">` : "<span>-</span>";
             return `<tr>
                 <td>${image}</td>
-                <td>${p.name || "-"}</td>
+                <td>${displayProductName(p.name) || "-"}</td>
                 <td>${colorSwatch(p.color)}</td>
                 <td>${p.size || "-"}</td>
                 <td>${p.price ?? "-"}</td>
                 <td>
-                    <button class="chip-btn" data-view-product="${p.id}">View</button>
-                    <button class="chip-btn" data-edit-product="${p.id}">Edit</button>
-                    <button class="chip-btn danger" data-delete-product="${p.id}">Delete</button>
+                    <button class="chip-btn" data-view-product="${p.id}">${t("actions.view")}</button>
+                    <button class="chip-btn" data-edit-product="${p.id}">${t("actions.edit")}</button>
+                    <button class="chip-btn danger" data-delete-product="${p.id}">${t("actions.delete")}</button>
                 </td>
             </tr>`;
         })
@@ -49,7 +61,7 @@ async function loadProducts() {
         productsState.items = payload.data || [];
         renderProducts();
     } catch (err) {
-        window.appApi.showAlert(err.message || "No se pudieron cargar productos.");
+        window.appApi.showAlert(err.message || t("alerts.loadProducts"));
     }
 }
 
@@ -60,7 +72,7 @@ function openProductModal(editing = null) {
 
     if (editing) {
         productsState.editingId = editing.id;
-        document.getElementById("product-form-title").textContent = "Edit Product";
+        document.getElementById("product-form-title").textContent = t("productForm.editTitle");
         document.getElementById("product-id").value = editing.id;
         document.getElementById("product-name").value = editing.name || "";
         document.getElementById("product-color").value = editing.color || "#FF0000";
@@ -70,7 +82,7 @@ function openProductModal(editing = null) {
         document.getElementById("product-image").value = editing.image || "";
     } else {
         productsState.editingId = null;
-        document.getElementById("product-form-title").textContent = "New Product";
+        document.getElementById("product-form-title").textContent = t("productForm.newTitle");
         form.reset();
         document.getElementById("product-color").value = "#FF0000";
         document.getElementById("product-color-text").value = "#FF0000";
@@ -94,19 +106,19 @@ function clientValidateProduct(payload, form) {
     window.appApi.clearFieldErrors(form);
 
     if (payload.name.length < 2) {
-        window.appApi.setFieldError(form, "name", "Minimo 2 caracteres.");
+        window.appApi.setFieldError(form, "name", t("errors.min2"));
         valid = false;
     }
     if (!/^#[0-9A-Fa-f]{6}$/.test(payload.color)) {
-        window.appApi.setFieldError(form, "color", "Color invalido #RRGGBB.");
+        window.appApi.setFieldError(form, "color", t("errors.invalidColor"));
         valid = false;
     }
     if (!["XS", "S", "M", "L", "XL"].includes(payload.size)) {
-        window.appApi.setFieldError(form, "size", "Selecciona una talla.");
+        window.appApi.setFieldError(form, "size", t("errors.selectSize"));
         valid = false;
     }
     if (!Number.isInteger(payload.price) || payload.price < 1) {
-        window.appApi.setFieldError(form, "price", "Precio entero mayor que 0.");
+        window.appApi.setFieldError(form, "price", t("errors.pricePositive"));
         valid = false;
     }
     return valid;
@@ -121,10 +133,10 @@ async function saveProduct(event) {
     try {
         if (productsState.editingId) {
             await window.appApi.api.patch(`/api/products/${encodeURIComponent(productsState.editingId)}`, payload);
-            window.appApi.showAlert("Product updated", "success");
+            window.appApi.showAlert(t("success.productUpdated"), "success");
         } else {
             await window.appApi.api.post("/api/products", payload);
-            window.appApi.showAlert("Product created", "success");
+            window.appApi.showAlert(t("success.productCreated"), "success");
         }
         window.appApi.closeDialogById("product-modal");
         await loadProducts();
@@ -133,18 +145,18 @@ async function saveProduct(event) {
         if (details.fieldErrors) {
             Object.entries(details.fieldErrors).forEach(([k, v]) => window.appApi.setFieldError(form, k, v));
         }
-        window.appApi.showAlert(err.message || "Error guardando producto");
+        window.appApi.showAlert(err.message || t("errors.saveProduct"));
     }
 }
 
 async function deleteProductById(entityId) {
-    if (!window.confirm("Delete this product?")) return;
+    if (!window.confirm(t("confirm.deleteProduct"))) return;
     try {
         await window.appApi.api.delete(`/api/products/${encodeURIComponent(entityId)}`);
-        window.appApi.showAlert("Product deleted", "success");
+        window.appApi.showAlert(t("success.productDeleted"), "success");
         await loadProducts();
     } catch (err) {
-        window.appApi.showAlert(err.message || "No se pudo borrar el producto.");
+        window.appApi.showAlert(err.message || t("errors.deleteProduct"));
     }
 }
 
@@ -159,12 +171,12 @@ function renderProductDetail() {
             <td><strong>${group.storeName}</strong></td>
             <td><strong>${group.stockCount}</strong></td>
             <td>-</td>
-            <td><button class="chip-btn" data-add-inventory-store="${group.storeId}" data-add-inventory-store-name="${group.storeName}">Add InventoryItem</button></td>
+            <td><button class="chip-btn" data-add-inventory-store="${group.storeId}" data-add-inventory-store-name="${group.storeName}">${t("actions.addInventoryItem")}</button></td>
         </tr>`);
 
         group.shelves.forEach((shelf) => {
             rows.push(`<tr class="child-row">
-                <td>${shelf.shelfName}</td>
+                <td>${displayShelfName(shelf.shelfName)}</td>
                 <td>-</td>
                 <td>${shelf.shelfCount}</td>
                 <td></td>
@@ -182,7 +194,7 @@ async function loadProductDetail(productId) {
         productsState.groupedInventory = payload.data || { stores: [] };
         renderProductDetail();
     } catch (err) {
-        window.appApi.showAlert(err.message || "No se pudo cargar el detalle del producto.");
+        window.appApi.showAlert(err.message || t("errors.loadProductDetail"));
     }
 }
 
@@ -191,7 +203,7 @@ function openProductDetail(productId) {
     if (!product) return;
 
     productsState.selectedProductId = productId;
-    document.getElementById("product-detail-title").textContent = `Product Detail: ${product.name}`;
+    document.getElementById("product-detail-title").textContent = `${t("productDetail.title")}: ${displayProductName(product.name)}`;
     window.location.hash = "#product-detail";
     loadProductDetail(productId);
 }
@@ -217,9 +229,9 @@ async function openInventoryItemModal(storeId, storeName) {
         const shelves = payload.data || [];
 
         if (!shelves.length) {
-            select.innerHTML = '<option value="">No available shelves</option>';
+            select.innerHTML = `<option value="">${t("inventory.noAvailableShelves")}</option>`;
             submitBtn.disabled = true;
-            errorNode.textContent = "No hay shelves disponibles para este producto en la tienda.";
+            errorNode.textContent = t("inventory.noShelvesForProduct");
         } else {
             select.innerHTML = shelves.map((shelf) => `<option value="${shelf.id}">${shelf.name}</option>`).join("");
             submitBtn.disabled = false;
@@ -227,7 +239,7 @@ async function openInventoryItemModal(storeId, storeName) {
 
         modal.showModal();
     } catch (err) {
-        window.appApi.showAlert(err.message || "No se pudieron cargar shelves disponibles.");
+        window.appApi.showAlert(err.message || t("errors.loadAvailableShelves"));
     }
 }
 
@@ -236,11 +248,13 @@ async function saveInventoryItem(event) {
     const productId = document.getElementById("inventory-product-id").value;
     const storeId = document.getElementById("inventory-store-id").value;
     const shelfId = document.getElementById("inventory-shelf-select").value;
+    const shelfCount = Number(document.getElementById("inventory-shelf-count").value);
+    const stockCount = Number(document.getElementById("inventory-stock-count").value);
     const errorNode = document.getElementById("inventory-shelf-error");
     errorNode.textContent = "";
 
     if (!shelfId) {
-        errorNode.textContent = "Selecciona una shelf.";
+        errorNode.textContent = t("errors.selectShelf");
         return;
     }
 
@@ -248,14 +262,14 @@ async function saveInventoryItem(event) {
         await window.appApi.api.post(`/api/products/${encodeURIComponent(productId)}/inventory-items`, {
             refStore: storeId,
             refShelf: shelfId,
-            shelfCount: 1,
-            stockCount: 1,
+            shelfCount: shelfCount,
+            stockCount: stockCount,
         });
         window.appApi.closeDialogById("inventory-item-modal");
-        window.appApi.showAlert("InventoryItem creado", "success");
+        window.appApi.showAlert(t("success.inventoryItemCreated"), "success");
         await loadProductDetail(productId);
     } catch (err) {
-        errorNode.textContent = err.message || "No se pudo crear InventoryItem.";
+        errorNode.textContent = err.message || t("errors.createInventoryItem");
     }
 }
 
@@ -298,6 +312,21 @@ function setupProductsEvents() {
     });
 
     document.getElementById("inventory-item-form").addEventListener("submit", saveInventoryItem);
+
+    document.addEventListener("app:language-changed", () => {
+        renderProducts();
+        if (productsState.selectedProductId) {
+            renderProductDetail();
+            const product = productsState.items.find((item) => item.id === productsState.selectedProductId);
+            if (product) {
+                    document.getElementById("product-detail-title").textContent = `${t("productDetail.title")}: ${displayProductName(product.name)}`;
+            }
+        }
+        const productFormTitle = document.getElementById("product-form-title");
+        if (productFormTitle) {
+            productFormTitle.textContent = productsState.editingId ? t("productForm.editTitle") : t("productForm.newTitle");
+        }
+    });
 }
 
 document.addEventListener("DOMContentLoaded", () => {

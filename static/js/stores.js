@@ -9,11 +9,24 @@ const storesState = {
     globalMap: null,
     globalMarkers: [],
     store3dView: null,
+    threeLoaderPromise: null,
 };
+
+function t(key, params) {
+    return window.appI18n ? window.appI18n.t(key, params) : key;
+}
 
 function formatMetric(value, suffix) {
     if (value === undefined || value === null || value === "") return "-";
     return `${value}${suffix}`;
+}
+
+function displayShelfName(name) {
+    return window.appI18n ? window.appI18n.translateDomainValue("shelfName", name) : name;
+}
+
+function displayProductName(name) {
+    return window.appI18n ? window.appI18n.translateDomainValue("productName", name) : name;
 }
 
 function filterStores(list, term) {
@@ -78,9 +91,9 @@ function renderStores() {
                 <td>${formatMetric(store.temperature, " °C")}</td>
                 <td>${formatMetric(store.relativeHumidity, " %")}</td>
                 <td>
-                    <button class="chip-btn" data-view-store="${store.id}">View</button>
-                    <button class="chip-btn" data-edit-store="${store.id}">Edit</button>
-                    <button class="chip-btn danger" data-delete-store="${store.id}">Delete</button>
+                    <button class="chip-btn" data-view-store="${store.id}">${t("actions.view")}</button>
+                    <button class="chip-btn" data-edit-store="${store.id}">${t("actions.edit")}</button>
+                    <button class="chip-btn danger" data-delete-store="${store.id}">${t("actions.delete")}</button>
                 </td>
             </tr>`;
         })
@@ -98,7 +111,7 @@ async function loadStoresView() {
             renderStoresMap();
         }
     } catch (err) {
-        window.appApi.showAlert(err.message || "No se pudieron cargar las tiendas.");
+        window.appApi.showAlert(err.message || t("alerts.loadStores"));
     }
 }
 
@@ -109,7 +122,7 @@ function openStoreModal(editing = null) {
 
     if (editing) {
         storesState.editingId = editing.id;
-        document.getElementById("store-form-title").textContent = "Edit Store";
+        document.getElementById("store-form-title").textContent = t("storeForm.editTitle");
         document.getElementById("store-id").value = editing.id;
         document.getElementById("store-name").value = editing.name || "";
         document.getElementById("store-countryCode").value = editing.countryCode || "";
@@ -125,7 +138,7 @@ function openStoreModal(editing = null) {
         document.getElementById("store-latitude").value = coords ? coords.lat : "";
     } else {
         storesState.editingId = null;
-        document.getElementById("store-form-title").textContent = "New Store";
+        document.getElementById("store-form-title").textContent = t("storeForm.newTitle");
         form.reset();
     }
 
@@ -154,35 +167,35 @@ function clientValidateStore(payload, form) {
     window.appApi.clearFieldErrors(form);
 
     if (payload.name.length < 2) {
-        window.appApi.setFieldError(form, "name", "Minimo 2 caracteres.");
+        window.appApi.setFieldError(form, "name", t("errors.min2"));
         valid = false;
     }
     if (!/^[A-Za-z]{2}$/.test(payload.countryCode)) {
-        window.appApi.setFieldError(form, "countryCode", "Country code de 2 letras.");
+        window.appApi.setFieldError(form, "countryCode", t("errors.countryCode"));
         valid = false;
     }
     if (Number.isNaN(payload.temperature) || payload.temperature < -50 || payload.temperature > 50) {
-        window.appApi.setFieldError(form, "temperature", "Temperatura entre -50 y 50.");
+        window.appApi.setFieldError(form, "temperature", t("errors.temperatureRange"));
         valid = false;
     }
     if (Number.isNaN(payload.relativeHumidity) || payload.relativeHumidity < 0 || payload.relativeHumidity > 100) {
-        window.appApi.setFieldError(form, "relativeHumidity", "Humedad entre 0 y 100.");
+        window.appApi.setFieldError(form, "relativeHumidity", t("errors.humidityRange"));
         valid = false;
     }
     if (payload.url && !/^https?:\/\//.test(payload.url)) {
-        window.appApi.setFieldError(form, "url", "URL invalida.");
+        window.appApi.setFieldError(form, "url", t("errors.invalidUrl"));
         valid = false;
     }
     if (payload.image && !/^https?:\/\//.test(payload.image)) {
-        window.appApi.setFieldError(form, "image", "Image URL invalida.");
+        window.appApi.setFieldError(form, "image", t("errors.invalidImageUrl"));
         valid = false;
     }
     if (Number.isNaN(payload.longitude) || payload.longitude < -180 || payload.longitude > 180) {
-        window.appApi.setFieldError(form, "longitude", "Longitud entre -180 y 180.");
+        window.appApi.setFieldError(form, "longitude", t("errors.longitudeRange"));
         valid = false;
     }
     if (Number.isNaN(payload.latitude) || payload.latitude < -90 || payload.latitude > 90) {
-        window.appApi.setFieldError(form, "latitude", "Latitud entre -90 y 90.");
+        window.appApi.setFieldError(form, "latitude", t("errors.latitudeRange"));
         valid = false;
     }
 
@@ -206,10 +219,10 @@ async function saveStore(event) {
     try {
         if (isEditing) {
             await window.appApi.api.patch(`/api/stores/${encodeURIComponent(storesState.editingId)}`, payload);
-            window.appApi.showAlert("Store updated", "success");
+            window.appApi.showAlert(t("success.storeUpdated"), "success");
         } else {
             await window.appApi.api.post("/api/stores", payload);
-            window.appApi.showAlert("Store created", "success");
+            window.appApi.showAlert(t("success.storeCreated"), "success");
         }
         window.appApi.closeDialogById("store-modal");
         await loadStoresView();
@@ -219,19 +232,19 @@ async function saveStore(event) {
         if (details.fieldErrors) {
             Object.entries(details.fieldErrors).forEach(([k, v]) => window.appApi.setFieldError(form, k, v));
         }
-        window.appApi.showAlert(err.message || "Error guardando tienda");
+        window.appApi.showAlert(err.message || t("errors.saveStore"));
     }
 }
 
 async function deleteStore(entityId) {
-    if (!window.confirm("Delete this store?")) return;
+    if (!window.confirm(t("confirm.deleteStore"))) return;
     try {
         await window.appApi.api.delete(`/api/stores/${encodeURIComponent(entityId)}`);
-        window.appApi.showAlert("Store deleted", "success");
+        window.appApi.showAlert(t("success.storeDeleted"), "success");
         await loadStoresView();
         document.dispatchEvent(new CustomEvent("app:stores-updated"));
     } catch (err) {
-        window.appApi.showAlert(err.message || "No se pudo borrar la tienda.");
+        window.appApi.showAlert(err.message || t("errors.deleteStore"));
     }
 }
 
@@ -240,19 +253,25 @@ function renderStoreNotifications() {
     if (!container) return;
 
     if (!storesState.notifications.length) {
-        container.innerHTML = '<p class="empty-state">No notifications for this store yet.</p>';
+        container.innerHTML = `<p class="empty-state">${t("storeDetail.noNotifications")}</p>`;
         return;
     }
 
     container.innerHTML = storesState.notifications
         .map((item) => {
-            const ts = item.timestamp ? new Date(item.timestamp).toLocaleTimeString("es-ES") : "-";
+            const ts = item.timestamp && window.appI18n
+                ? window.appI18n.formatTime(item.timestamp)
+                : (item.timestamp ? new Date(item.timestamp).toLocaleTimeString("es-ES") : "-");
+            const title = item.kind === "price" ? t("storeNotif.priceTitle") : t("storeNotif.stockTitle");
+            const message = item.kind === "price"
+                ? t("storeNotif.price", { ...item.payload, product: displayProductName(item.payload.product) })
+                : t("storeNotif.stock", item.payload);
             return `<div class="notification-item ${item.type}">
                 <div class="notification-header">
-                    <span class="notification-title">${item.title}</span>
+                    <span class="notification-title">${title}</span>
                     <span class="notification-time">${ts}</span>
                 </div>
-                <div class="notification-body">${item.message}</div>
+                <div class="notification-body">${message}</div>
             </div>`;
         })
         .join("");
@@ -263,7 +282,7 @@ function renderStoreTweets(tweets = []) {
     if (!ul) return;
 
     if (!tweets.length) {
-        ul.innerHTML = "<li>-</li>";
+        ul.innerHTML = `<li>${t("storeDetail.noTweets")}</li>`;
         return;
     }
 
@@ -276,7 +295,7 @@ function renderStoreDetailMap(store) {
 
     const coords = getStoreCoordinates(store);
     if (!coords) {
-        container.innerHTML = '<p class="empty-state">This store has no coordinates yet.</p>';
+        container.innerHTML = `<p class="empty-state">${t("storeDetail.noCoordinates")}</p>`;
         if (storesState.detailMap) {
             storesState.detailMap.remove();
             storesState.detailMap = null;
@@ -337,7 +356,7 @@ function renderStoresMap() {
         const card = `<div class="map-store-card">
             <strong>${store.name || "Store"}</strong><br>
             ${store.countryCode || "-"}<br>
-            T: ${formatMetric(store.temperature, " C")} | H: ${formatMetric(store.relativeHumidity, " %")}
+            ${t("storeDetail.temperature")}: ${formatMetric(store.temperature, " C")} | ${t("storeDetail.humidity")}: ${formatMetric(store.relativeHumidity, " %")}
         </div>`;
         marker.bindPopup(card);
         marker.on("mouseover", () => marker.openPopup());
@@ -357,9 +376,73 @@ function renderStoresMap() {
     setTimeout(() => storesState.globalMap.invalidateSize(), 60);
 }
 
-function ensureStore3DView() {
-    if (storesState.store3dView || typeof window.Store3DView !== "function") return;
+function loadThreeFromUrl(url) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = url;
+        script.async = true;
+        script.onload = () => resolve(true);
+        script.onerror = () => {
+            script.remove();
+            reject(new Error(`Failed loading ${url}`));
+        };
+        document.head.appendChild(script);
+    });
+}
+
+async function ensureThreeJsLoaded() {
+    if (typeof window.THREE !== "undefined") {
+        return true;
+    }
+
+    if (storesState.threeLoaderPromise) {
+        return storesState.threeLoaderPromise;
+    }
+
+    const statusNode = document.getElementById("store-3d-status");
+    if (statusNode) {
+        statusNode.textContent = "Loading Three.js...";
+    }
+
+    storesState.threeLoaderPromise = (async () => {
+        const urls = [
+            "/static/js/vendor/three.min.js",
+            "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js",
+            "https://unpkg.com/three@0.160.0/build/three.min.js",
+        ];
+
+        for (const url of urls) {
+            try {
+                await loadThreeFromUrl(url);
+                if (typeof window.THREE !== "undefined") {
+                    return true;
+                }
+            } catch (err) {
+                // Keep trying the next URL.
+            }
+        }
+
+        return false;
+    })();
+
+    const ok = await storesState.threeLoaderPromise;
+    if (!ok && statusNode) {
+        statusNode.textContent = window.appI18n
+            ? window.appI18n.t("three.unavailable")
+            : "3D view unavailable (Three.js not loaded).";
+    }
+
+    return ok;
+}
+
+async function ensureStore3DView() {
+    if (storesState.store3dView) return true;
+
+    const loaded = await ensureThreeJsLoaded();
+    if (!loaded || typeof window.Store3DView !== "function") return false;
+
     storesState.store3dView = new window.Store3DView("store-3d-canvas", "store-3d-status");
+    return Boolean(storesState.store3dView);
 }
 
 function destroyStore3DView() {
@@ -375,7 +458,7 @@ function renderStoreDetail() {
     const store = payload.store || {};
     const shelves = payload.shelves || [];
 
-    document.getElementById("store-detail-title").textContent = `Store Detail: ${store.name || storesState.selectedStoreId || "-"}`;
+    document.getElementById("store-detail-title").textContent = `${t("storeDetail.title")}: ${store.name || storesState.selectedStoreId || "-"}`;
     document.getElementById("store-detail-temp").textContent = formatMetric(store.temperature, " °C");
     document.getElementById("store-detail-humidity").textContent = formatMetric(store.relativeHumidity, " %");
 
@@ -391,15 +474,11 @@ function renderStoreDetail() {
 
     const rows = [];
     shelves.forEach((shelf) => {
-        const shelfName = shelf.shelfName || shelf.shelfId;
+        const shelfName = displayShelfName(shelf.shelfName || shelf.shelfId);
         const fillPercent = shelf.fillPercent || 0;
         const fillClass = fillLevelClass(fillPercent);
         rows.push(`<tr class="group-row" data-shelf-group="${shelf.shelfId}">
             <td><strong>${shelfName}</strong></td>
-            <td>-</td>
-            <td>-</td>
-            <td>-</td>
-            <td>-</td>
             <td>
                 <div class="shelf-fill-wrap">
                     <div class="shelf-fill-track">
@@ -408,22 +487,29 @@ function renderStoreDetail() {
                     <strong>${shelf.fillCount || 0}/${shelf.maxCapacity || 0} (${fillPercent}%)</strong>
                 </div>
             </td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
             <td>
-                <button class="chip-btn" data-edit-shelf="${shelf.shelfId}" data-edit-shelf-name="${shelfName}" data-edit-shelf-capacity="${shelf.maxCapacity || 0}">Edit Shelf</button>
-                <button class="chip-btn" data-add-store-inventory="${shelf.shelfId}" data-add-store-inventory-name="${shelfName}">Add InventoryItem</button>
+                    <button class="chip-btn" data-edit-shelf="${shelf.shelfId}" data-edit-shelf-name="${shelfName}" data-edit-shelf-capacity="${shelf.maxCapacity || 0}">${t("actions.editShelf")}</button>
+                    <button class="chip-btn" data-add-store-inventory="${shelf.shelfId}" data-add-store-inventory-name="${shelfName}">${t("actions.addInventoryItem")}</button>
             </td>
         </tr>`);
 
         (shelf.items || []).forEach((item) => {
+            const image = item.image ? `<img src="${item.image}" class="thumb" alt="${item.name || "Product"}">` : "<span>-</span>";
             rows.push(`<tr class="child-row">
-                <td>${item.name || "-"}</td>
+                <td>${displayProductName(item.name) || "-"}</td>
+                <td>${image}</td>
                 <td>${item.price ?? "-"}</td>
                 <td>${item.size || "-"}</td>
                 <td>${item.color || "-"}</td>
                 <td>${item.stockCount ?? 0}</td>
                 <td>${item.shelfCount ?? 0}</td>
                 <td>
-                    <button class="chip-btn" data-buy-inventory-item="${item.inventoryItemId}">Buy Unit</button>
+                    <button class="chip-btn" data-buy-inventory-item="${item.inventoryItemId}">${t("actions.buyUnit")}</button>
                 </td>
             </tr>`);
         });
@@ -432,9 +518,14 @@ function renderStoreDetail() {
     tbody.innerHTML = rows.join("");
     empty.style.display = rows.length ? "none" : "block";
 
-    ensureStore3DView();
     if (storesState.store3dView) {
         storesState.store3dView.renderStoreInventory(payload);
+    } else {
+        ensureStore3DView().then((ready) => {
+            if (ready && storesState.store3dView) {
+                storesState.store3dView.renderStoreInventory(payload);
+            }
+        });
     }
 
     renderStoreNotifications();
@@ -446,7 +537,7 @@ async function loadStoreDetail(storeId) {
         storesState.groupedInventory = payload.data || { shelves: [] };
         renderStoreDetail();
     } catch (err) {
-        window.appApi.showAlert(err.message || "No se pudo cargar el detalle de la tienda.");
+        window.appApi.showAlert(err.message || t("errors.loadStoreDetail"));
     }
 }
 
@@ -463,12 +554,12 @@ function openShelfModal(editing = null) {
     window.appApi.clearFieldErrors(form);
 
     if (editing) {
-        document.getElementById("shelf-form-title").textContent = "Edit Shelf";
+        document.getElementById("shelf-form-title").textContent = t("shelfForm.editTitle");
         document.getElementById("shelf-id").value = editing.id;
         document.getElementById("shelf-name").value = editing.name || "";
         document.getElementById("shelf-max-capacity").value = editing.maxCapacity ?? "";
     } else {
-        document.getElementById("shelf-form-title").textContent = "New Shelf";
+        document.getElementById("shelf-form-title").textContent = t("shelfForm.newTitle");
         form.reset();
         document.getElementById("shelf-id").value = "";
     }
@@ -489,12 +580,12 @@ async function saveShelf(event) {
 
     if (name.length < 2) {
         const target = form.querySelector('[data-error-for="shelf-name"]');
-        if (target) target.textContent = "Minimo 2 caracteres.";
+        if (target) target.textContent = t("errors.min2");
         return;
     }
     if (!Number.isInteger(maxCapacity) || maxCapacity <= 0) {
         const target = form.querySelector('[data-error-for="shelf-max-capacity"]');
-        if (target) target.textContent = "Capacidad entera mayor que 0.";
+        if (target) target.textContent = t("errors.maxCapacityPositive");
         return;
     }
 
@@ -504,18 +595,18 @@ async function saveShelf(event) {
                 name,
                 maxCapacity,
             });
-            window.appApi.showAlert("Shelf updated", "success");
+            window.appApi.showAlert(t("success.shelfUpdated"), "success");
         } else {
             await window.appApi.api.post(`/api/stores/${encodeURIComponent(storeId)}/shelves`, {
                 name,
                 maxCapacity,
             });
-            window.appApi.showAlert("Shelf created", "success");
+            window.appApi.showAlert(t("success.shelfCreated"), "success");
         }
         window.appApi.closeDialogById("shelf-modal");
         await loadStoreDetail(storeId);
     } catch (err) {
-        window.appApi.showAlert(err.message || "No se pudo guardar la shelf.");
+        window.appApi.showAlert(err.message || t("errors.saveShelf"));
     }
 }
 
@@ -540,16 +631,16 @@ async function openStoreInventoryModal(shelfId, shelfName) {
         );
         const products = payload.data || [];
         if (!products.length) {
-            select.innerHTML = '<option value="">No available products</option>';
+            select.innerHTML = `<option value="">${t("inventory.noAvailableProducts")}</option>`;
             submitBtn.disabled = true;
-            errorNode.textContent = "No hay productos disponibles para esta shelf.";
+            errorNode.textContent = t("inventory.noProductsForShelf");
         } else {
             select.innerHTML = products.map((product) => `<option value="${product.id}">${product.name}</option>`).join("");
             submitBtn.disabled = false;
         }
         modal.showModal();
     } catch (err) {
-        window.appApi.showAlert(err.message || "No se pudieron cargar productos disponibles.");
+        window.appApi.showAlert(err.message || t("errors.loadAvailableProducts"));
     }
 }
 
@@ -566,11 +657,11 @@ async function saveStoreInventoryItem(event) {
     errorNode.textContent = "";
 
     if (!productId) {
-        errorNode.textContent = "Selecciona un producto.";
+        errorNode.textContent = t("errors.selectProduct");
         return;
     }
     if (!Number.isInteger(shelfCount) || shelfCount < 0 || !Number.isInteger(stockCount) || stockCount < 0) {
-        errorNode.textContent = "Stock y shelf deben ser enteros >= 0.";
+        errorNode.textContent = t("errors.nonNegativeInventory");
         return;
     }
 
@@ -582,10 +673,10 @@ async function saveStoreInventoryItem(event) {
             stockCount,
         });
         window.appApi.closeDialogById("store-inventory-modal");
-        window.appApi.showAlert("InventoryItem creado", "success");
+        window.appApi.showAlert(t("success.inventoryItemCreated"), "success");
         await loadStoreDetail(storeId);
     } catch (err) {
-        errorNode.textContent = err.message || "No se pudo crear InventoryItem.";
+        errorNode.textContent = err.message || t("errors.createInventoryItem");
     }
 }
 
@@ -593,15 +684,15 @@ async function buyInventoryItem(inventoryItemId) {
     if (!storesState.selectedStoreId) return;
     try {
         await window.appApi.api.post(`/api/inventory-items/${encodeURIComponent(inventoryItemId)}/buy`, {});
-        window.appApi.showAlert("Purchase registered", "success");
+        window.appApi.showAlert(t("success.purchaseRegistered"), "success");
         await loadStoreDetail(storesState.selectedStoreId);
     } catch (err) {
-        window.appApi.showAlert(err.message || "No se pudo registrar la compra.");
+        window.appApi.showAlert(err.message || t("errors.registerPurchase"));
     }
 }
 
 function pushStoreNotification(type, title, message, timestamp) {
-    storesState.notifications.unshift({ type, title, message, timestamp });
+    storesState.notifications.unshift({ type, title, message, timestamp, kind: type, payload: {} });
     storesState.notifications = storesState.notifications.slice(0, 20);
     if (window.location.hash.replace("#", "") === "store-detail") {
         renderStoreNotifications();
@@ -690,21 +781,53 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    document.addEventListener("app:product-price-changed", (ev) => {
+    document.addEventListener("app:product-price-changed", async (ev) => {
         const detail = ev.detail || {};
         if (!storesState.selectedStoreId) return;
-        const message = `${detail.productName || detail.entityId || "Product"}: €${detail.newPrice ?? "-"}`;
-        pushStoreNotification("price", "Price updated", message, detail.timestamp);
+        const payload = {
+            product: detail.productName || detail.entityId || t("fallback.product"),
+            price: detail.newPrice ?? "-",
+        };
+        pushStoreNotification("price", t("storeNotif.priceTitle"), t("storeNotif.price", payload), detail.timestamp);
+        storesState.notifications[0].payload = payload;
+
+        if (window.location.hash.replace("#", "") === "store-detail") {
+            await loadStoreDetail(storesState.selectedStoreId);
+        }
     });
 
     document.addEventListener("app:stock-alert", (ev) => {
         const detail = ev.detail || {};
         if (!storesState.selectedStoreId) return;
-        const message = `${detail.entityId || "InventoryItem"}: stock=${detail.currentStock ?? "-"}, shelf=${detail.shelfStock ?? "-"}`;
-        pushStoreNotification("stock", "Stock alert", message, detail.timestamp);
+        const payload = {
+            entityId: detail.entityId || t("fallback.inventoryItem"),
+            currentStock: detail.currentStock ?? "-",
+            shelfStock: detail.shelfStock ?? "-",
+        };
+        pushStoreNotification("stock", t("storeNotif.stockTitle"), t("storeNotif.stock", payload), detail.timestamp);
+        storesState.notifications[0].payload = payload;
     });
 
     document.addEventListener("app:stores-updated", () => {
+        if (window.location.hash.replace("#", "") === "store-map") {
+            renderStoresMap();
+        }
+    });
+
+    document.addEventListener("app:language-changed", () => {
+        renderStores();
+        if (storesState.selectedStoreId) {
+            renderStoreDetail();
+        }
+        const storeFormTitle = document.getElementById("store-form-title");
+        if (storeFormTitle) {
+            storeFormTitle.textContent = storesState.editingId ? t("storeForm.editTitle") : t("storeForm.newTitle");
+        }
+        const shelfFormTitle = document.getElementById("shelf-form-title");
+        if (shelfFormTitle) {
+            const shelfId = document.getElementById("shelf-id")?.value;
+            shelfFormTitle.textContent = shelfId ? t("shelfForm.editTitle") : t("shelfForm.newTitle");
+        }
         if (window.location.hash.replace("#", "") === "store-map") {
             renderStoresMap();
         }

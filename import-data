@@ -13,19 +13,44 @@ printf "Loading extended context data "
 
 post_update() {
   payload="$1"
-  curl -s -o /dev/null -X POST \
+  code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
     "${ORION_URL}/v2/op/update" \
     -H 'Content-Type: application/json' \
-    -d "${payload}"
+    -d "${payload}")
+  case "$code" in
+    2*) ;;
+    *)
+      echo "\nError: Orion /v2/op/update failed with HTTP ${code}" >&2
+      exit 1
+      ;;
+  esac
 }
 
 post_json() {
   endpoint="$1"
   payload="$2"
-  curl -s -o /dev/null -X POST \
+  code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
     "${ORION_URL}${endpoint}" \
     -H 'Content-Type: application/json' \
-    -d "${payload}"
+    -d "${payload}")
+  case "$code" in
+    2*|409) ;;
+    *)
+      echo "\nError: Orion ${endpoint} failed with HTTP ${code}" >&2
+      exit 1
+      ;;
+  esac
+}
+
+count_entities() {
+  entity_type="$1"
+  q_filter="$2"
+  query="${ORION_URL}/v2/entities?type=${entity_type}&options=count&limit=1"
+  if [ -n "$q_filter" ]; then
+    query="${query}&q=${q_filter}"
+  fi
+  curl -s -D - -o /dev/null "$query" \
+    | awk 'tolower($1)=="fiware-total-count:" {gsub("\r","",$2); print $2; exit}'
 }
 
 post_update '{
@@ -65,7 +90,7 @@ post_update '{
       "countryCode":{"type":"Text","value":"DE"},
       "capacity":{"type":"Integer","value":6000},
       "description":{"type":"Text","value":"Riverside store focused on premium products."},
-      "image":{"type":"URL","value":"https://images.unsplash.com/photo-1604719312566-8912e9c8a213"}
+      "image":{"type":"URL","value":"https://picsum.photos/seed/east-side-galleria/1200/800"}
     },
     {
       "id":"urn:ngsi-ld:Store:004","type":"Store",
@@ -94,7 +119,7 @@ post_json '/v2/registrations' '{
     "attrs": ["temperature", "relativeHumidity"]
   },
   "provider": {
-    "http": {"url": "http://tutorial:3000/proxy/v1/random/weatherConditions"},
+    "http": {"url": "http://tutorial:3000/random/weatherConditions"},
     "legacyForwarding": true
   },
   "status": "active"
@@ -112,7 +137,7 @@ post_json '/v2/registrations' '{
     "attrs": ["tweets"]
   },
   "provider": {
-    "http": {"url": "http://tutorial:3000/proxy/v1/catfacts/tweets"},
+    "http": {"url": "http://tutorial:3000/catfacts/tweets"},
     "legacyForwarding": true
   },
   "status": "active"
@@ -147,8 +172,8 @@ post_update '{
   "actionType":"APPEND",
   "entities":[
     {"id":"urn:ngsi-ld:Product:001","type":"Product","name":{"type":"Text","value":"Apples"},"size":{"type":"Text","value":"S"},"price":{"type":"Integer","value":99},"color":{"type":"Text","value":"#FF5733"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1567306226416-28f0efdc88ce"}},
-    {"id":"urn:ngsi-ld:Product:002","type":"Product","name":{"type":"Text","value":"Bananas"},"size":{"type":"Text","value":"M"},"price":{"type":"Integer","value":1099},"color":{"type":"Text","value":"#FFD700"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1574226516831-e1dff420e8f8"}},
-    {"id":"urn:ngsi-ld:Product:003","type":"Product","name":{"type":"Text","value":"Coconuts"},"size":{"type":"Text","value":"M"},"price":{"type":"Integer","value":1499},"color":{"type":"Text","value":"#8B4513"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1581375321224-79da6fd32f6a"}},
+    {"id":"urn:ngsi-ld:Product:002","type":"Product","name":{"type":"Text","value":"Bananas"},"size":{"type":"Text","value":"M"},"price":{"type":"Integer","value":1099},"color":{"type":"Text","value":"#FFD700"},"image":{"type":"URL","value":"http://localhost:5000/static/img/banana.svg"}},
+    {"id":"urn:ngsi-ld:Product:003","type":"Product","name":{"type":"Text","value":"Coconuts"},"size":{"type":"Text","value":"M"},"price":{"type":"Integer","value":1499},"color":{"type":"Text","value":"#8B4513"},"image":{"type":"URL","value":"http://localhost:5000/static/img/coconut.svg"}},
     {"id":"urn:ngsi-ld:Product:004","type":"Product","name":{"type":"Text","value":"Melons"},"size":{"type":"Text","value":"XL"},"price":{"type":"Integer","value":5000},"color":{"type":"Text","value":"#90EE90"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1563114773-84221bd62daa"}},
     {"id":"urn:ngsi-ld:Product:005","type":"Product","name":{"type":"Text","value":"Kiwi Fruits"},"size":{"type":"Text","value":"S"},"price":{"type":"Integer","value":99},"color":{"type":"Text","value":"#6B8E23"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1585059895524-72359e06133a"}},
     {"id":"urn:ngsi-ld:Product:006","type":"Product","name":{"type":"Text","value":"Strawberries"},"size":{"type":"Text","value":"S"},"price":{"type":"Integer","value":99},"color":{"type":"Text","value":"#FF1493"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1464965911861-746a04b4bca6"}},
@@ -162,15 +187,14 @@ post_update '{
 post_update '{
   "actionType":"APPEND",
   "entities":[
-    {"id":"urn:ngsi-ld:Employee:001","type":"Employee","name":{"type":"Text","value":"Juan Garcia"},"email":{"type":"Text","value":"juan@store.com"},"dateOfContract":{"type":"DateTime","value":"2022-03-15T00:00:00Z"},"skills":{"type":"Array","value":["MachineryDriving","WritingReports"]},"username":{"type":"Text","value":"juan.garcia"},"password":{"type":"Text","value":"hash_juan_2026"},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:001"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1500648767791-00dcc994a43e"}},
-    {"id":"urn:ngsi-ld:Employee:002","type":"Employee","name":{"type":"Text","value":"Maria Lopez"},"email":{"type":"Text","value":"maria@store.com"},"dateOfContract":{"type":"DateTime","value":"2021-06-10T00:00:00Z"},"skills":{"type":"Array","value":["CustomerRelationships"]},"username":{"type":"Text","value":"maria.lopez"},"password":{"type":"Text","value":"hash_maria_2026"},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:002"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1544005313-94ddf0286df2"}},
-    {"id":"urn:ngsi-ld:Employee:003","type":"Employee","name":{"type":"Text","value":"Pedro Martinez"},"email":{"type":"Text","value":"pedro@store.com"},"dateOfContract":{"type":"DateTime","value":"2020-11-20T00:00:00Z"},"skills":{"type":"Array","value":["WritingReports","MachineryDriving"]},"username":{"type":"Text","value":"pedro.martinez"},"password":{"type":"Text","value":"hash_pedro_2026"},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:003"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d"}},
-    {"id":"urn:ngsi-ld:Employee:004","type":"Employee","name":{"type":"Text","value":"Ana Rodriguez"},"email":{"type":"Text","value":"ana@store.com"},"dateOfContract":{"type":"DateTime","value":"2023-01-05T00:00:00Z"},"skills":{"type":"Array","value":["CustomerRelationships","WritingReports"]},"username":{"type":"Text","value":"ana.rodriguez"},"password":{"type":"Text","value":"hash_ana_2026"},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:004"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1487412720507-e7ab37603c6f"}}
+    {"id":"urn:ngsi-ld:Employee:001","type":"Employee","name":{"type":"Text","value":"Juan Garcia"},"email":{"type":"Text","value":"juan@store.com"},"dateOfContract":{"type":"DateTime","value":"2022-03-15T00:00:00Z"},"category":{"type":"Text","value":"Warehouse"},"skills":{"type":"Array","value":["MachineryDriving","WritingReports"]},"username":{"type":"Text","value":"juan.garcia"},"password":{"type":"Text","value":"hash_juan_2026"},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:001"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1500648767791-00dcc994a43e"}},
+    {"id":"urn:ngsi-ld:Employee:002","type":"Employee","name":{"type":"Text","value":"Maria Lopez"},"email":{"type":"Text","value":"maria@store.com"},"dateOfContract":{"type":"DateTime","value":"2021-06-10T00:00:00Z"},"category":{"type":"Text","value":"CustomerSupport"},"skills":{"type":"Array","value":["CustomerRelationships"]},"username":{"type":"Text","value":"maria.lopez"},"password":{"type":"Text","value":"hash_maria_2026"},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:002"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1544005313-94ddf0286df2"}},
+    {"id":"urn:ngsi-ld:Employee:003","type":"Employee","name":{"type":"Text","value":"Pedro Martinez"},"email":{"type":"Text","value":"pedro@store.com"},"dateOfContract":{"type":"DateTime","value":"2020-11-20T00:00:00Z"},"category":{"type":"Text","value":"Manager"},"skills":{"type":"Array","value":["WritingReports","MachineryDriving"]},"username":{"type":"Text","value":"pedro.martinez"},"password":{"type":"Text","value":"hash_pedro_2026"},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:003"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d"}},
+    {"id":"urn:ngsi-ld:Employee:004","type":"Employee","name":{"type":"Text","value":"Ana Rodriguez"},"email":{"type":"Text","value":"ana@store.com"},"dateOfContract":{"type":"DateTime","value":"2023-01-05T00:00:00Z"},"category":{"type":"Text","value":"Sales"},"skills":{"type":"Array","value":["CustomerRelationships","WritingReports"]},"username":{"type":"Text","value":"ana.rodriguez"},"password":{"type":"Text","value":"hash_ana_2026"},"refStore":{"type":"Relationship","value":"urn:ngsi-ld:Store:004"},"image":{"type":"URL","value":"https://images.unsplash.com/photo-1487412720507-e7ab37603c6f"}}
   ]
 }'
 
 shelf_store_pairs="unit001:001 unit002:001 unit003:001 unit004:001 unit005:002 unit006:002 unit007:002 unit008:002 unit009:003 unit010:003 unit011:003 unit012:003 unit013:004 unit014:004 unit015:004 unit016:004"
-inventory_entities=""
 item_counter=1
 shelf_index=0
 
@@ -178,6 +202,7 @@ for pair in $shelf_store_pairs; do
   shelf="${pair%%:*}"
   store="${pair##*:}"
   offset=0
+  shelf_entities=""
   while [ "$offset" -lt 4 ]; do
     product_num=$(( (shelf_index + offset) % 10 + 1 ))
     product_id=$(printf "%03d" "$product_num")
@@ -185,18 +210,17 @@ for pair in $shelf_store_pairs; do
     shelf_count=$(( 8 + (offset * 4) + (shelf_index % 4) ))
     stock_count=$(( 120 + shelf_count + (shelf_index * 3) ))
     obj="{\"id\":\"urn:ngsi-ld:InventoryItem:${inv_id}\",\"type\":\"InventoryItem\",\"refStore\":{\"type\":\"Relationship\",\"value\":\"urn:ngsi-ld:Store:${store}\"},\"refShelf\":{\"type\":\"Relationship\",\"value\":\"urn:ngsi-ld:Shelf:${shelf}\"},\"refProduct\":{\"type\":\"Relationship\",\"value\":\"urn:ngsi-ld:Product:${product_id}\"},\"stockCount\":{\"type\":\"Integer\",\"value\":${stock_count}},\"shelfCount\":{\"type\":\"Integer\",\"value\":${shelf_count}}}"
-    if [ -n "$inventory_entities" ]; then
-      inventory_entities="${inventory_entities},${obj}"
+    if [ -n "$shelf_entities" ]; then
+      shelf_entities="${shelf_entities},${obj}"
     else
-      inventory_entities="${obj}"
+      shelf_entities="${obj}"
     fi
     item_counter=$((item_counter + 1))
     offset=$((offset + 1))
   done
+  post_update "{\"actionType\":\"APPEND\",\"entities\":[${shelf_entities}]}"
   shelf_index=$((shelf_index + 1))
 done
-
-post_update "{\"actionType\":\"APPEND\",\"entities\":[${inventory_entities}]}"
 
 post_json '/v2/subscriptions' "{
   \"description\": \"Product price changes\",
@@ -226,5 +250,40 @@ post_json '/v2/subscriptions' "{
   },
   \"throttling\": 1
 }"
+
+stores_count=$(count_entities "Store" "")
+employees_count=$(count_entities "Employee" "")
+products_count=$(count_entities "Product" "")
+shelves_count=$(count_entities "Shelf" "")
+inventory_count=$(count_entities "InventoryItem" "")
+
+if [ "${stores_count}" -lt 4 ]; then
+  echo "\nError: expected at least 4 Store entities, got ${stores_count}" >&2
+  exit 1
+fi
+if [ "${employees_count}" -lt 4 ]; then
+  echo "\nError: expected at least 4 Employee entities, got ${employees_count}" >&2
+  exit 1
+fi
+if [ "${products_count}" -lt 10 ]; then
+  echo "\nError: expected at least 10 Product entities, got ${products_count}" >&2
+  exit 1
+fi
+if [ "${shelves_count}" -lt 16 ]; then
+  echo "\nError: expected at least 16 Shelf entities, got ${shelves_count}" >&2
+  exit 1
+fi
+if [ "${inventory_count}" -lt 64 ]; then
+  echo "\nError: expected at least 64 InventoryItem entities, got ${inventory_count}" >&2
+  exit 1
+fi
+
+for shelf in unit001 unit002 unit003 unit004 unit005 unit006 unit007 unit008 unit009 unit010 unit011 unit012 unit013 unit014 unit015 unit016; do
+  shelf_items=$(count_entities "InventoryItem" "refShelf==urn:ngsi-ld:Shelf:${shelf}")
+  if [ "${shelf_items}" -lt 4 ]; then
+    echo "\nError: shelf ${shelf} has ${shelf_items} InventoryItem entities (minimum is 4)" >&2
+    exit 1
+  fi
+done
 
 echo "done"

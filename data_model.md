@@ -3,6 +3,17 @@
 
 **Formato:** NGSI-v2 (Orion Context Broker compatible)
 
+**Actualización 2026-04-05:** Diagrama UML de Home sincronizado con este modelo de datos para atributos de `Employee`, `Store` y `Product`.
+**Actualización 2026-04-05:** La app registra automáticamente al arrancar los proveedores externos de `Store` para `temperature`, `relativeHumidity` y `tweets`.
+**Actualización 2026-04-05:** `import-data` valida conteos mínimos en Orion (incluyendo mínimo 4 `InventoryItem` por estantería) y falla si no se cumplen.
+**Actualización 2026-04-05:** `import-data` incluye `Employee.category` para los 4 empleados y corrige la URL de imagen de `Store:003`.
+**Actualización 2026-04-05:** Soporte ES/EN y Dark/Light aplicado en la capa de presentación (sin cambios en el esquema NGSIv2 de entidades).
+**Actualización 2026-04-05:** Ajustadas URLs de `image` para `Product:002 (Bananas: /static/img/banana.svg)` y `Product:003 (Coconuts: /static/img/coconut.svg)` como recursos locales SVG para garantizar render consistente de miniaturas sin dependencias HTTP externas.
+**Actualización 2026-04-05:** La representación de `InventoryItem` en `Store Detail` expone por fila de producto `image`, `name`, `price`, `size`, `color`, `stockCount` y `shelfCount`, manteniendo agrupación por `Shelf` y sincronización de cambios de `price` en tiempo real.
+**Actualización 2026-04-05:** El agregado de `Store Detail` incluye todas las `Shelf` del `Store` (rellenas o vacías), con `fillCount=0` y `items=[]` cuando no hay `InventoryItem` asociado.
+**Actualización 2026-04-05:** La visualización 3D de `Shelf` en Store Detail se desacopla de CDN externas al cargar Three.js desde recurso local del proyecto.
+**Actualización 2026-04-05:** En la visualización 3D se muestra desglose por estantería de productos con sus unidades por estantería (`shelfCount`) y unidades totales (`stockCount`), sin cambios en el esquema NGSIv2.
+
 ---
 
 ## 1. Diagrama UML (Mermaid)

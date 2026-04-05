@@ -4,9 +4,13 @@ const employeesState = {
     editingId: null,
 };
 
+function t(key, params) {
+    return window.appI18n ? window.appI18n.t(key, params) : key;
+}
+
 function renderStoresSelect() {
     const select = document.getElementById("employee-store");
-    select.innerHTML = '<option value="">Select store</option>' +
+    select.innerHTML = `<option value="">${t("form.selectStore")}</option>` +
         employeesState.stores
             .map((store) => `<option value="${store.id}">${store.name || store.id}</option>`)
             .join("");
@@ -23,7 +27,14 @@ function filterEmployees(list, term) {
 
 function skillBadges(skills) {
     if (!Array.isArray(skills)) return "-";
-    return skills.map((skill) => `<span class="badge">${skill}</span>`).join(" ");
+    return skills.map((skill) => {
+        const label = window.appI18n ? window.appI18n.translateDomainValue("employeeSkill", skill) : skill;
+        return `<span class="badge">${label}</span>`;
+    }).join(" ");
+}
+
+function displayEmployeeCategory(category) {
+    return window.appI18n ? window.appI18n.translateDomainValue("employeeCategory", category) : category;
 }
 
 function findStoreName(refStore) {
@@ -44,14 +55,14 @@ function renderEmployees() {
                 <td>${photo}</td>
                 <td>${e.name || "-"}</td>
                 <td>${e.email || "-"}</td>
-                <td>${e.category || "-"}</td>
+                <td>${displayEmployeeCategory(e.category) || "-"}</td>
                 <td>${skillBadges(e.skills)}</td>
                 <td>${e.username || "-"}</td>
                 <td>${findStoreName(e.refStore)}</td>
                 <td>${e.dateOfContract || "-"}</td>
                 <td>
-                    <button class="chip-btn" data-edit-employee="${e.id}">Edit</button>
-                    <button class="chip-btn danger" data-delete-employee="${e.id}">Delete</button>
+                    <button class="chip-btn" data-edit-employee="${e.id}">${t("actions.edit")}</button>
+                    <button class="chip-btn danger" data-delete-employee="${e.id}">${t("actions.delete")}</button>
                 </td>
             </tr>`;
         })
@@ -66,7 +77,7 @@ async function loadEmployees() {
         employeesState.items = payload.data || [];
         renderEmployees();
     } catch (err) {
-        window.appApi.showAlert(err.message || "No se pudieron cargar empleados.");
+        window.appApi.showAlert(err.message || t("alerts.loadEmployees"));
     }
 }
 
@@ -76,7 +87,7 @@ async function loadStores() {
         employeesState.stores = payload.data || [];
         renderStoresSelect();
     } catch (err) {
-        window.appApi.showAlert(err.message || "No se pudieron cargar tiendas.");
+        window.appApi.showAlert(err.message || t("alerts.loadStores"));
     }
 }
 
@@ -91,7 +102,7 @@ function openEmployeeModal(editing = null) {
 
     if (editing) {
         employeesState.editingId = editing.id;
-        document.getElementById("employee-form-title").textContent = "Edit Employee";
+        document.getElementById("employee-form-title").textContent = t("employeeForm.editTitle");
         document.getElementById("employee-id").value = editing.id;
         document.getElementById("employee-name").value = editing.name || "";
         document.getElementById("employee-email").value = editing.email || "";
@@ -106,7 +117,7 @@ function openEmployeeModal(editing = null) {
         });
     } else {
         employeesState.editingId = null;
-        document.getElementById("employee-form-title").textContent = "New Employee";
+        document.getElementById("employee-form-title").textContent = t("employeeForm.newTitle");
         form.reset();
         form.querySelectorAll('input[name="skills"]').forEach((node) => {
             node.checked = false;
@@ -135,35 +146,35 @@ function clientValidateEmployee(payload, form, isEditing) {
     window.appApi.clearFieldErrors(form);
 
     if (payload.name.length < 2) {
-        window.appApi.setFieldError(form, "name", "Minimo 2 caracteres.");
+        window.appApi.setFieldError(form, "name", t("errors.min2"));
         valid = false;
     }
     if (!payload.email.includes("@")) {
-        window.appApi.setFieldError(form, "email", "Email invalido.");
+        window.appApi.setFieldError(form, "email", t("errors.invalidEmail"));
         valid = false;
     }
     if (!payload.dateOfContract) {
-        window.appApi.setFieldError(form, "dateOfContract", "Fecha requerida.");
+        window.appApi.setFieldError(form, "dateOfContract", t("errors.requiredDate"));
         valid = false;
     }
     if (!["Manager", "Warehouse", "Sales", "CustomerSupport"].includes(payload.category)) {
-        window.appApi.setFieldError(form, "category", "Selecciona una categoria.");
+        window.appApi.setFieldError(form, "category", t("errors.selectCategory"));
         valid = false;
     }
     if (!payload.skills.length) {
-        window.appApi.setFieldError(form, "skills", "Selecciona al menos una skill.");
+        window.appApi.setFieldError(form, "skills", t("errors.selectSkill"));
         valid = false;
     }
     if (!/^[A-Za-z0-9_]+$/.test(payload.username) || payload.username.length < 3) {
-        window.appApi.setFieldError(form, "username", "Username invalido.");
+        window.appApi.setFieldError(form, "username", t("errors.invalidUsername"));
         valid = false;
     }
     if (!isEditing && payload.password.length < 8) {
-        window.appApi.setFieldError(form, "password", "Password minimo 8 caracteres.");
+        window.appApi.setFieldError(form, "password", t("errors.minPassword"));
         valid = false;
     }
     if (!payload.refStore) {
-        window.appApi.setFieldError(form, "refStore", "Selecciona una tienda.");
+        window.appApi.setFieldError(form, "refStore", t("errors.selectStore"));
         valid = false;
     }
 
@@ -182,10 +193,10 @@ async function saveEmployee(event) {
     try {
         if (isEditing) {
             await window.appApi.api.patch(`/api/employees/${encodeURIComponent(employeesState.editingId)}`, payload);
-            window.appApi.showAlert("Employee updated", "success");
+            window.appApi.showAlert(t("success.employeeUpdated"), "success");
         } else {
             await window.appApi.api.post("/api/employees", payload);
-            window.appApi.showAlert("Employee created", "success");
+            window.appApi.showAlert(t("success.employeeCreated"), "success");
         }
         window.appApi.closeDialogById("employee-modal");
         await loadEmployees();
@@ -194,18 +205,18 @@ async function saveEmployee(event) {
         if (details.fieldErrors) {
             Object.entries(details.fieldErrors).forEach(([k, v]) => window.appApi.setFieldError(form, k, v));
         }
-        window.appApi.showAlert(err.message || "Error guardando empleado");
+        window.appApi.showAlert(err.message || t("errors.saveEmployee"));
     }
 }
 
 async function deleteEmployeeById(entityId) {
-    if (!window.confirm("Delete this employee?")) return;
+    if (!window.confirm(t("confirm.deleteEmployee"))) return;
     try {
         await window.appApi.api.delete(`/api/employees/${encodeURIComponent(entityId)}`);
-        window.appApi.showAlert("Employee deleted", "success");
+        window.appApi.showAlert(t("success.employeeDeleted"), "success");
         await loadEmployees();
     } catch (err) {
-        window.appApi.showAlert(err.message || "No se pudo borrar el empleado.");
+        window.appApi.showAlert(err.message || t("errors.deleteEmployee"));
     }
 }
 
@@ -224,6 +235,15 @@ function setupEmployeesEvents() {
         }
 
         if (deleteId) deleteEmployeeById(deleteId);
+    });
+
+    document.addEventListener("app:language-changed", () => {
+        renderStoresSelect();
+        renderEmployees();
+        const employeeFormTitle = document.getElementById("employee-form-title");
+        if (employeeFormTitle) {
+            employeeFormTitle.textContent = employeesState.editingId ? t("employeeForm.editTitle") : t("employeeForm.newTitle");
+        }
     });
 }
 

@@ -1,6 +1,17 @@
 # System Architecture
 ## Aplicación FIWARE Gestión Inventario – Práctica 2
 
+**Actualización 2026-04-05:** El diagrama Mermaid mostrado en Home queda alineado con los atributos extendidos definidos para `Employee`, `Store` y `Product`.
+**Actualización 2026-04-05:** El backend ejecuta bootstrap idempotente de registros Orion para proveedores externos de `Store` al arrancar la app.
+**Actualización 2026-04-05:** Las consultas backend a Orion incluyen `limit` explícito para evitar truncado por paginación por defecto y degradaciones en vistas agregadas.
+**Actualización 2026-04-05:** Seed de datos reforzado para coherencia de vistas (`Employee.category` y recursos visuales de tiendas).
+**Actualización 2026-04-05:** Se añade módulo de internacionalización frontend (`static/js/i18n.js`) con diccionario ES/EN y toggles persistentes de idioma/tema en cabecera.
+**Actualización 2026-04-05:** El seed `import-data` usa URLs locales para `Product:002` (Bananas: `/static/img/banana.svg`) y `Product:003` (Coconuts: `/static/img/coconut.svg`), eliminando dependencias externas y garantizando carga fiable de la tabla de Products.
+**Actualización 2026-04-05:** La vista `Store Detail` integra Leaflet para ubicación, Three.js en detalle por tienda y refresco reactivo del inventario ante eventos `product_price_changed` para mantener consistencia de precios en vistas visibles.
+**Actualización 2026-04-05:** El agregado `Store -> Shelf -> InventoryItem` expone también estanterías vacías para preservar navegación 3D y acciones por shelf aun sin productos asignados.
+**Actualización 2026-04-05:** Three.js se sirve desde estático local (`static/js/vendor/three.min.js`) para evitar fallos por CDN y asegurar render del recorrido 3D en entornos sin salida a Internet.
+**Actualización 2026-04-05:** El módulo `Store3DView` incorpora una leyenda sincronizada por estantería que lista productos con `shelfCount` y `stockCount`, reutilizando el mismo payload agregado de `Store Detail`.
+
 **Diagrama de Alto Nivel:**
 ```
 ┌─ FRONTEND (localhost:5000) ──────────────────────────────────────┐

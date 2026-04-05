@@ -52,6 +52,12 @@ pip install -r requirements.txt
 
 ## Ejecución
 
+Al arrancar la aplicación Flask, el backend registra automáticamente en Orion (si no existen) los 2 proveedores de contexto externo para atributos de `Store`:
+- `temperature` y `relativeHumidity`
+- `tweets`
+
+Este registro es idempotente (no duplica registros existentes).
+
 ### Opción 1: Desarrollo (Debug habilitado)
 
 ```bash
@@ -95,17 +101,21 @@ http://localhost:5000
 
 ### 3. Probar notificaciones en tiempo real
 
+Nota: en esta práctica, la actualización de atributos individuales en Orion se está realizando con `PUT /v2/entities/{id}/attrs/{attr}`.
+
 #### Cambio de Precio
 
 ```bash
 # Cambiar precio de un producto
-curl -X PATCH http://localhost:1026/v2/entities/urn:ngsi-ld:Product:001/attrs/price \
+curl -i -X PUT http://localhost:1026/v2/entities/urn:ngsi-ld:Product:001/attrs/price \
   -H "Content-Type: application/json" \
   -d '{
     "type": "Integer",
     "value": 150
   }'
 ```
+
+Respuesta esperada en Orion: `HTTP/1.1 204 No Content`.
 
 **Resultado esperado en navegador:** 
 - Aparece notificación "💲 Cambio de Precio: Apples: €150"
@@ -115,14 +125,16 @@ curl -X PATCH http://localhost:1026/v2/entities/urn:ngsi-ld:Product:001/attrs/pr
 #### Bajo Stock Alert
 
 ```bash
-# Cambiar stock de un InventoryItem a nivel crítico (<5)
-curl -X PATCH http://localhost:1026/v2/entities/urn:ngsi-ld:InventoryItem:001/attrs/stock \
+# Cambiar stockCount de un InventoryItem a nivel crítico (<5)
+curl -i -X PUT http://localhost:1026/v2/entities/urn:ngsi-ld:InventoryItem:001/attrs/stockCount \
   -H "Content-Type: application/json" \
   -d '{
     "type": "Integer",
     "value": 2
   }'
 ```
+
+Respuesta esperada en Orion: `HTTP/1.1 204 No Content`.
 
 **Resultado esperado en navegador:**
 - Aparece notificación "⚠️ Bajo Stock: Item urn:ngsi-ld:InventoryItem:001: Stock=2 (Estantería=...)"
@@ -133,12 +145,22 @@ curl -X PATCH http://localhost:1026/v2/entities/urn:ngsi-ld:InventoryItem:001/at
 ```bash
 # Realizar varias actualizaciones rápidas
 for i in {100..110}; do
-  curl -X PATCH http://localhost:1026/v2/entities/urn:ngsi-ld:Product:001/attrs/price \
+  curl -X PUT http://localhost:1026/v2/entities/urn:ngsi-ld:Product:001/attrs/price \
     -H "Content-Type: application/json" \
     -d "{ \"type\": \"Integer\", \"value\": $i }"
   sleep 1
 done
 ```
+
+#### Verificación de entrega Orion -> Flask
+
+Si quieres confirmar que Orion está entregando al webhook correctamente:
+
+```bash
+docker logs --tail 100 fiware-orion | grep "/webhooks/notifications"
+```
+
+Debes ver líneas con `Notif delivered ... response code: 200`.
 
 ### 4. Verificar WebSocket en consola del navegador
 
