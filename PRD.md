@@ -1,294 +1,191 @@
 # Product Requirements Document (PRD)
-## Aplicación FIWARE Mejorada – Práctica 2 XDEI
+## Aplicacion FIWARE Mejorada - Practica 2 XDEI
 
-**Versión:** 1.1 | **Estado:** En Desarrollo
+Version: 1.2  
+Estado: En desarrollo activo  
+Ultima actualizacion: 2026-04-06
 
-**Actualización 2026-04-05:** Diagrama UML de Home sincronizado con el modelo completo de atributos de `Employee`, `Store` y `Product`.
-**Actualización 2026-04-05:** Registro automático al arranque de proveedores externos de `Store` (`temperature`, `relativeHumidity`, `tweets`) en Orion.
-**Actualización 2026-04-05:** Corrección de paginación NGSIv2 (`limit`) para evitar vistas truncadas y validación de conteos mínimos en `import-data`.
-**Actualización 2026-04-05:** Datos iniciales alineados con UI: `Employee.category` poblado y URL de imagen corregida para `Store:003`.
-**Actualización 2026-04-05:** Interfaz con soporte ES/EN mediante i18n en frontend y toggle de idioma persistente (`localStorage`), manteniendo toggle Dark/Light persistente.
-**Actualización 2026-04-05:** Sustituidas URLs de imagen de `Bananas` y `Coconuts` por recursos locales SVG (`static/img/banana.svg`, `static/img/coconut.svg`) para garantizar representación correcta de frutas con renderizado vectorial estable.
-**Actualización 2026-04-05:** Vista `Store Detail` ajustada para mostrar recorrido Three.js por tienda, tweets tras la tabla agrupada por `Shelf`, columna de imagen en filas de `Product` y refresco de precio en tiempo real en todas las vistas donde aparece.
-**Actualización 2026-04-05:** `Store Detail` devuelve y representa siempre todas las `Shelf` de la tienda (aunque estén vacías), evitando vistas 3D sin contenido y manteniendo la agrupación por estantería en tabla.
-**Actualización 2026-04-05:** La carga de Three.js en `Store Detail` pasa a modo offline-first con recurso local (`static/js/vendor/three.min.js`) y fallback remoto opcional.
-**Actualización 2026-04-05:** El panel del recorrido 3D añade desglose por `Shelf` con productos almacenados y métricas por producto (`shelfCount` y `stockCount`) para trazabilidad completa del inventario en la vista inmersiva.
-**Actualización 2026-04-05:** Mejora visual aplicada en tablas y mapas: foto `Employee` con zoom hover, foto `Store` con zoom+rotación, iconografía compacta (`country` con bandera, `category/skills` con iconos Font Awesome) y `Stores Map` con marcadores de imagen y tarjeta enriquecida al pasar el ratón.
+## 1. Descripcion general
 
----
+Aplicacion web de gestion de inventario sobre FIWARE Orion (NGSIv2), con backend Flask/Flask-SocketIO y frontend SPA ligera (hash routes), que ofrece:
 
-## 1. Descripción General
+- CRUD sobre Product, Employee y Store.
+- Operaciones de detalle por Product y por Store.
+- Gestion de Shelf e InventoryItem desde Store Detail.
+- Notificaciones en tiempo real para cambios de precio y alertas de stock.
+- Visualizacion de mapas (Leaflet), diagrama UML (Mermaid) y recorrido 3D por tienda (Three.js).
+- Interfaz bilingue ES/EN y tema claro/oscuro persistentes.
 
-Mejorar la aplicación de la Práctica 1 integrando **registro y suscripciones NGSIv2**, **notificaciones en tiempo real desde servidor a cliente** mediante WebSockets, y **metodología GitHub Flow** para desarrollo.
+## 2. Objetivos del producto
 
-Sistema de gestión de inventario inteligente basado en FIWARE para múltiples tiendas, empleados, estanterías y productos con sincronización en tiempo real.
+- Mantener sincronizada la UI con Orion sin recarga completa de pagina.
+- Permitir operativa completa de inventario por tienda y estanteria.
+- Mejorar trazabilidad visual de datos (mapa, 3D, notificaciones).
+- Ofrecer experiencia de usuario consistente en ES/EN y light/dark.
 
----
+## 3. Alcance funcional actual
 
-## 2. Objetivos
+### 3.1 Vistas y navegacion
 
-- ✓ Implementar notificaciones real-time (cambio precio, bajo stock)
-- ✓ Gestión completa CRUD de 5 entidades FIWARE
-- ✓ Experiencia visual inmersiva (mapas 3D, recorrido virtual Three.js)
-- ✓ Interfaz bilingüe (Español/Inglés) con temas Dark/Light
-- ✓ Integración proveedores contexto externo (temperature, humidity, tweets)
-- ✓ Suscripciones y notificaciones NGSIv2 desde Orion
+La aplicacion incluye las vistas:
 
----
+- Home
+- Products
+- Product Detail
+- Stores
+- Store Detail
+- Stores Map
+- Employees
 
-## 3. Requisitos Funcionales
+Navegacion por hash route y activacion de pestaña segun ruta activa.
 
-### 3.1 Gestión de Entidades (CRUD Completo)
+### 3.2 Gestion de entidades
 
-| Entidad | Atributos Nuevos/Modificados | Características |
-|---------|------------------------------|-----------------|
-| **Employee** | email, dateOfContract, skills[], username, password | 1 por Store, foto con zoom CSS |
-| **Store** | url, telephone, countryCode, capacity, description, temperature, relativeHumidity | Ubicación mapa, recorrido 3D, tweets, temp/humedad |
-| **Shelf** | Se mantiene (location, maxCapacity, name, refStore) | nivel de llenado barra progreso |
-| **Product** | color (hex RGB) | Foto, precio visible en tablas |
-| **InventoryItem** | shelfCount, stockCount | Comprar unidad PATCH Orion |
+- Product: alta, listado, edicion, borrado.
+- Employee: alta, listado, edicion, borrado.
+- Store: alta, listado, detalle, edicion, borrado.
+- Shelf: alta desde Store Detail y edicion por id.
+- InventoryItem:
+  - alta desde Product Detail (por store+shelf disponibles),
+  - alta desde Store Detail (por shelf+product disponible),
+  - compra unitaria con decremento atomico de shelfCount y stockCount.
 
-### 3.2 Suscripciones NGSIv2 y Notificaciones
+### 3.3 Proyecciones y agregados de lectura
 
-**Cambios suscritos en Orion:**
-- Cambio de **price** de Product → actualizar en todas las vistas donde aparece
-- **stockCount** bajo de InventoryItem → notificación en vista Store
+- Resumen global KPI por tipo de entidad.
+- Product Detail agrupado por Store y Shelf.
+- Store Detail agrupado por Shelf, incluyendo estanterias vacias.
+- Calculo de fillCount y fillPercent por estanteria.
 
-**Proveedores contexto externo (registro en Orion):**
-- Temperature/RelativeHumidity → desde tutorial:3000/proxy/v1/random/weatherConditions
-- Tweets → desde tutorial:3000/proxy/v1/catfacts/tweets
+### 3.4 Tiempo real
 
-### 3.3 Notificaciones Servidor a Cliente
+Eventos Orion procesados por webhook backend:
 
-- Flask-SocketIO escucha cambios desde Orion
-- Emite eventos Socket.IO al navegador
-- Actualiza elementos UI sin recarga de página
+- Product.price -> evento Socket.IO product_price_changed.
+- InventoryItem.stockCount < 5 -> evento Socket.IO stock_alert.
 
-### 3.4 Interfaz de Usuario
+Eventos Socket.IO servidor-cliente soportados:
 
-**Vistas:**
-1. **Home** → Diagrama UML entidades (Mermaid renderizado)
-2. **Products** → Tabla: imagen, nombre, color, size, precio | Botones: Agregar, Modificar, Borrar
-3. **Stores** → 
-   - Mapa Leaflet con ubicación
-   - Tabla inventario agrupada por Shelf
-   - Recorrido 3D con Three.js
-   - Temperatura/Humedad con iconos coloreados
-   - Tweets con icono X (Twitter)
-   - Panel notificaciones
-4. **Employees** → Tabla: foto (zoom hover), email, skills, botones
-5. **Stores Map** → Mapa global, tarjeta on-hover, click → detalle Store
+- connection_established
+- product_price_changed
+- stock_alert
+- server_status
+- pong
 
-**Características Globales:**
-- Multiidioma toggle (ES/EN)
-- Dark/Light mode toggle
-- Navbar persistente, resalta sección activa durante scroll
-- Validación HTML5 + JavaScript en formularios
-- Variedad input types: text, email, password, number, tel, date, color, select, textarea, checkbox, radio
-- Tablas compactas con iconos Font Awesome
-- Botones de acción en tablas (CRUD)
+Eventos cliente-servidor soportados:
 
-### 3.5 Datos Iniciales Cargados
+- ping
+- get_status
 
-- **4 Empleados**: con email, skills, contraseña, asignados a tiendas
-- **4 Tiendas**: Berlín (ubicaciones reales), con temperature/humidity
-- **4 Estanterías por Tienda** (16 totales)
-- **10 Productos**: frutas/verduras con colores, size, price
-- **Items Inventario**: mín. 4 productos por estantería distribuidos
+### 3.5 UI y experiencia
 
----
+- Modo claro/oscuro persistente (localStorage).
+- Idioma ES/EN persistente (localStorage).
+- Toggle de tema con icono sol/luna.
+- Toggle de idioma con icono de bandera ES/UK.
+- Estilos dark mode afinados en Store Detail (tabla agrupada y tarjetas de leyenda 3D).
 
-## 4. Requisitos No Funcionales
+### 3.6 Visualizacion avanzada
 
-### 4.1 Tecnología y Stack
+- Home con diagrama UML renderizado en Mermaid.
+- Store Detail con:
+  - mapa Leaflet de la tienda,
+  - recorrido 3D Three.js,
+  - leyenda por estanteria con productos y metricas,
+  - panel de tweets,
+  - panel de notificaciones del store.
+- Stores Map global con marcadores por tienda y acceso a detalle.
 
-**Backend:**
-- Flask 2.x + Flask-SocketIO
-- Conexión HTTP a Orion Context Broker (NGSIv2)
-- Escucha de webhooks notificaciones Orion
-- Port: localhost:5000
+## 4. Contratos de API (backend actual)
 
-**Frontend:**
-- HTML5 semántico
-- CSS3 (grid, flexbox, animaciones)
-- JavaScript vanilla (Socket.IO)
-- Librerías UI: Leaflet.js, Three.js, Mermaid.js, Font Awesome
+### 4.1 Sistema
 
-**Datos:**
-- MongoDB (gestionado vía Orion)
-- Orion Context Broker (NGSIv2) en localhost:1026
-- Tutorial context provider en localhost:3000
+- GET / -> index
+- GET /health
+- POST /webhooks/notifications
 
-**DevOps:**
-- Docker Compose (3+ contenedores: Orion, MongoDB, Tutorial)
-- .env con variables: ORION_PORT, MONGO_PORT, TUTORIAL_PORT
-- .gitignore: .venv, __pycache__, *.pyc
+### 4.2 Summary
 
-### 4.2 Principios de Arquitectura
+- GET /api/summary
 
-- **Separación responsabilidades:** Backend (lógica), Frontend (presentación)
-- **CSS first:** Usar CSS para estilos/animaciones, JS solo lógica necesaria
-- **Minimizar HTML dinámico:** Actualizar atributos elementos existentes, no generar HTML desde JS
-- **Real-time ready:** WebSockets anticipados, sin AJAX polling
-- **Documentación dinámica:** Actualizar PRD/architecture/data_model tras cada issue completado
+### 4.3 Stores
 
-### 4.3 Performance y Escalabilidad
+- GET /api/stores
+- GET /api/stores/<entity_id>
+- POST /api/stores
+- PATCH /api/stores/<entity_id>
+- DELETE /api/stores/<entity_id>
+- GET /api/stores/<entity_id>/inventory-grouped
+- GET /api/stores/<entity_id>/available-products?shelfId=<id>
+- POST /api/stores/<entity_id>/shelves
+- POST /api/stores/<entity_id>/inventory-items
 
-- Notificaciones sin bloqueon (async SocketIO)
-- Lazy loading tablas grandes
-- Caché de datos en cliente
-- Respuesta rápida (<500ms) cambios inventario
+### 4.4 Shelves
 
----
+- PATCH /api/shelves/<entity_id>
 
-## 5. Datos Iniciales: Script import-data
+### 4.5 Inventory items
 
-- Ejecutar desde Docker
-- Crear 4 Stores, 4 Employees, 10 Products, 16 Shelves, N InventoryItems
-- Registrar 2 proveedores contexto (temperature/humidity, tweets)
-- Usar imágenes gratuitas (Unsplash) o generadas (Nano Banana 2)
+- POST /api/inventory-items/<entity_id>/buy
 
----
+### 4.6 Products
 
-## 6. Criterios de Aceptación
+- GET /api/products
+- POST /api/products
+- PATCH /api/products/<entity_id>
+- DELETE /api/products/<entity_id>
+- GET /api/products/<entity_id>/inventory-grouped
+- GET /api/products/<entity_id>/available-shelves?storeId=<id>
+- POST /api/products/<entity_id>/inventory-items
 
-✓ PRD.md, architecture.md, data_model.md completos y específicos  
-✓ 5 entidades con atributos definidos  
-✓ Suscripciones NGSIv2 especificadas (2 tipos notificaciones)  
-✓ Stack técnico documentado completo  
-✓ 4 tiendas + datos iniciales definidos  
-✓ Vistas de interfaz detalladas  
+### 4.7 Employees
 
----
+- GET /api/employees
+- POST /api/employees
+- PATCH /api/employees/<entity_id>
+- DELETE /api/employees/<entity_id>
 
-## 7. Métricas de Éxito
+## 5. Integraciones externas
 
-- Todas las entidades CRUD implementadas
-- 2 suscripciones NGSIv2 funcionando correctamente
-- Notificaciones real-time en cliente
-- Interfaz multiidioma funcional
-- Dark/Light mode funcional
-- Mapa Leaflet accesible
-- Recorrido 3D con Three.js
-- Datos iniciales 100% cargados
-- GitHub Flow completamente implementado
+- Orion Context Broker (NGSIv2) en puerto 1026.
+- MongoDB como almacenamiento de Orion.
+- Tutorial context provider en puerto 3000.
 
----
+Registros de contexto externos para Store (bootstrap backend + script import-data):
 
-## 8. Estado de Implementación por Issue
+- weatherConditions: temperature, relativeHumidity.
+- catfacts tweets: tweets.
 
-### Issue #1 - Modelo de datos ampliado (implementado)
+Rutas de provider actualmente usadas:
 
-- Script `import-data` ampliado con 4 Stores, 4 Employees, 10 Products, 16 Shelves y 64 InventoryItems.
-- Entity `Employee` implementada con `email`, `dateOfContract`, `skills`, `username`, `password` y `refStore`.
-- Entity `Store` ampliada con `url`, `telephone`, `countryCode`, `capacity`, `description` e `image`.
-- Entity `Product` ampliada con atributo `color` en formato hexadecimal `#RRGGBB`.
-- Registro de proveedores de contexto para `temperature`/`relativeHumidity` y `tweets` para las 4 tiendas.
-- Alta de 2 suscripciones NGSIv2: cambio de precio y bajo stock hacia `http://host.docker.internal:5000/webhooks/notifications`.
+- http://tutorial:3000/random/weatherConditions
+- http://tutorial:3000/catfacts/tweets
 
-### Issue #3 - Suscripciones y notificaciones servidor-cliente con Flask-SocketIO y Socket.IO (implementado)
+## 6. Datos iniciales y seed
 
-- Servidor Flask-SocketIO en puerto 5000 con soporte WebSocket.
-- Webhook `/webhooks/notifications` que recibe eventos de Orion y emite a clientes Socket.IO.
-- Soporte para eventos: `product_price_changed` (cambio de precio) y `stock_alert` (bajo stock <5 unidades).
-- Interfaz minima HTML con panel de notificaciones en tiempo real, conexión status visual, y filtros.
-- Cliente Socket.IO en JavaScript con auto-reconexión, keepalive ping cada 30s, fallback a HTTP polling.
-- Estilos responsivos con gradientes, animaciones de conexión y notificaciones coloreadas por tipo.
-- `requirements.txt` con Flask 2.3, Flask-SocketIO 5.3, Flask-CORS, requests.
-- `README.md` completo con instrucciones, validación end-to-end, troubleshooting y ejemplos.
-- Validación: webhook acepta eventos de Orion, emite a navegador, reconexión automática funcional.
+Script import-data compatible con /bin/ash, con validaciones minimas en Orion:
 
-### Issue #5 - Interfaz de usuario HTML + CSS + JS y formularios de entrada de datos (implementado)
+- >= 4 Store
+- >= 4 Employee
+- >= 10 Product
+- >= 16 Shelf
+- >= 64 InventoryItem
 
-- Interfaz refactorizada a estructura multi-vista con navegación sticky: `Home`, `Products`, `Employees`.
-- Vista `Home` con diagrama UML Mermaid y tarjetas KPI (products, employees, stores, inventory items).
-- CRUD completo para `Product` desde frontend:
-   - Tabla con columnas `image`, `name`, `color`, `size`, `price` y acciones editar/borrar.
-   - Formulario modal de alta/modificación con validación HTML5 + JS.
-- CRUD completo para `Employee` desde frontend:
-   - Tabla con columnas `photo`, `name`, `email`, `skills`, `username`, `store`, `contract date`.
-   - Formulario modal con selector `refStore`, checkboxes `skills`, reglas de `username/password`.
-- Endpoints backend nuevos en Flask para proxy NGSIv2 contra Orion:
-   - `/api/summary`, `/api/stores`
-   - `/api/products` (GET/POST) y `/api/products/<id>` (PATCH/DELETE)
-   - `/api/employees` (GET/POST) y `/api/employees/<id>` (PATCH/DELETE)
-- Mantenimiento de notificaciones Socket.IO de Issue #3 integradas con la nueva interfaz.
-- Gestión de errores de formularios y APIs con mensajes globales e inline por campo.
+Ademas crea suscripciones NGSIv2 para precio y bajo stock.
 
-### Issue #7 - Vista Product (implementado)
+## 7. Requisitos no funcionales
 
-- Vista de detalle de Product añadida con tabla de `InventoryItems` agrupada por `Store`.
-- Por cada Store se muestra:
-   - Fila de cabecera con `storeName` y `stockCount` agregado del Product en esa tienda.
-   - Filas hijas por `Shelf` con `shelfCount`.
-- Botón en cabecera de cada Store para añadir un `InventoryItem` del Product en otra Shelf.
-- Selector dinámico de Shelves elegibles (excluye shelves donde ese Product ya existe).
-- Validaciones aplicadas:
-   - Evita duplicado `Product + Shelf`.
-   - Verifica que la Shelf pertenece al Store seleccionado.
-- Endpoints backend añadidos:
-   - `GET /api/products/<id>/inventory-grouped`
-   - `GET /api/products/<id>/available-shelves?storeId=<id>`
-   - `POST /api/products/<id>/inventory-items`
-- Integración mantenida con notificaciones en tiempo real de Orion sin regresiones.
+- Backend Python con Flask + Flask-SocketIO.
+- Frontend HTML/CSS/JS sin framework SPA pesado.
+- Consistencia visual responsive en desktop y mobile.
+- Idempotencia operacional en registro de providers al arranque.
+- Errores API normalizados con status, message y fieldErrors cuando aplica.
 
-### Issue #9 - Vista Store: detalle de inventario por Shelf y operaciones (implementado)
+## 8. Criterios de aceptacion vigentes
 
-- Nueva vista `Store Detail` accesible desde la tabla de Stores (botón `View`).
-- Tabla de `InventoryItems` agrupada por `Shelf`:
-   - Cabecera por Shelf con nombre, ocupación (`fillCount/maxCapacity`) y porcentaje de llenado.
-   - Filas hijas por Product con `price`, `size`, `color`, `stockCount`, `shelfCount`.
-- Operaciones habilitadas en la vista:
-   - Alta de Shelf en la tienda.
-   - Edición de Shelf existente (`name`, `maxCapacity`).
-   - Alta de InventoryItem para Shelf con selector dinámico de Products no presentes en esa Shelf.
-   - Compra de una unidad por InventoryItem (decremento atómico en Orion con `$inc: -1`).
-- Información contextual del Store:
-   - Temperatura y humedad mostradas en cabecera.
-   - Listado de `tweets` del Store.
-   - Panel de notificaciones del Store para eventos de precio y bajo stock.
-- Endpoints backend añadidos:
-   - `GET /api/stores/<id>/inventory-grouped`
-   - `GET /api/stores/<id>/available-products?shelfId=<id>`
-   - `POST /api/stores/<id>/shelves`
-   - `PATCH /api/shelves/<id>`
-   - `POST /api/stores/<id>/inventory-items`
-   - `POST /api/inventory-items/<id>/buy`
-
-### Issue #11 - Vista Store Part A: mapas Leaflet y mejoras visuales (implementado)
-
-- Se incorpora soporte de coordenadas en formularios de Store (`longitude`, `latitude`) con validaciones de rango.
-- Se habilita mapa Leaflet en `Store Detail` mostrando ubicación de la tienda con marcador.
-- Se añade nueva vista `Stores Map` con marcadores de todas las tiendas que tienen coordenadas.
-- Interacción en mapa global:
-   - Hover de marcador muestra tarjeta resumen del Store.
-   - Click en marcador navega a la vista de detalle del Store.
-- Mejora visual de `Shelf` en Store Detail:
-   - Barra de llenado por nivel (`fillPercent`) con semáforo de color (bajo/medio/alto).
-- Mejora visual de métricas ambientales:
-   - Temperatura y humedad con iconos y estilos por rangos.
-- Mejora visual de tweets:
-   - Cada tweet se muestra con icono estilo X.
-- Endpoints backend añadidos/extendidos:
-   - `GET /api/stores/<id>`
-   - `POST/PATCH /api/stores` extendidos para persistir `location` geo:json desde lon/lat.
-   - `GET /api/stores/<id>/inventory-grouped` enriquecido con `location` y `address` del Store.
-- Fuera de alcance explícito de este issue:
-   - Recorrido inmersivo con Three.js (queda para Part B).
-
-### Issue #13 - Vista Store Part B: recorrido inmersivo Three.js (implementado)
-
-- Se incorpora recorrido inmersivo 3D en la vista `Store Detail` usando Three.js.
-- El panel 3D representa procedimentalmente:
-   - Estanterías (`Shelf`) como módulos tridimensionales.
-   - Productos de cada estantería con codificación visual basada en `color`, `shelfCount` y `stockCount`.
-   - Nivel de llenado de estantería mediante indicador de color.
-- Se añaden controles de interacción:
-   - Rotación y zoom con puntero/rueda.
-   - Botón de reset de cámara.
-   - Botón para foco secuencial por estantería.
-- Integración con flujo existente de Store:
-   - Al cambiar de tienda se reconstruye la escena 3D con el nuevo payload.
-   - Al actualizar inventario (alta/compra) se refresca la representación 3D.
-- Estrategia de implementación acordada:
-   - Layout procedural sin ampliar metadata del modelo en esta iteración.
+- CRUD funcional para Product, Employee y Store.
+- Operaciones de Shelf e InventoryItem funcionales desde Store Detail.
+- Product Detail y Store Detail agrupados correctamente.
+- Notificaciones real-time entregadas de Orion a UI via webhook + Socket.IO.
+- ES/EN y light/dark persistentes y aplicados a toda la interfaz principal.
+- Documentacion PRD, architecture y data_model sincronizada con codigo actual.

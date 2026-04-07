@@ -209,7 +209,7 @@
             "notif.price.message": "{{product}}: EUR {{price}}",
             "notif.stock.title": "Bajo Stock",
             "notif.stock.message": "Item {{entityId}}: Stock={{currentStock}} (Estanteria={{shelfStock}})",
-            "footer.issue": "XDEI Practica 2 - Issue #5 UI + Forms"
+            "footer.issue": "XDEI Práctica 2"
         },
         en: {
             "app.title": "FIWARE Inventory System",
@@ -417,7 +417,7 @@
             "notif.price.message": "{{product}}: EUR {{price}}",
             "notif.stock.title": "Low Stock",
             "notif.stock.message": "Item {{entityId}}: Stock={{currentStock}} (Shelf={{shelfStock}})",
-            "footer.issue": "XDEI Practice 2 - Issue #5 UI + Forms"
+            "footer.issue": "XDEI Practice 2"
         }
     };
 
@@ -518,14 +518,22 @@
         const langBtn = document.getElementById("language-toggle");
         if (langBtn) {
             const current = getLanguage();
-            langBtn.textContent = `${t("language.toggle")}: ${t(`language.${current}`)}`;
+            const flag = document.createElement("span");
+            flag.className = `flag-icon ${current === "es" ? "flag-es" : "flag-gb"}`;
+            flag.setAttribute("aria-hidden", "true");
+            const label = `${t("language.toggle")}: ${t(`language.${current}`)}`;
+            langBtn.replaceChildren(flag);
+            langBtn.title = label;
+            langBtn.setAttribute("aria-label", label);
         }
 
         const themeBtn = document.getElementById("theme-toggle");
         if (themeBtn) {
             const theme = document.body.dataset.theme || "light";
             const themeLabel = theme === "dark" ? t("theme.dark") : t("theme.light");
-            themeBtn.textContent = `${t("theme.toggle")}: ${themeLabel}`;
+            themeBtn.textContent = theme === "dark" ? "🌙" : "☀️";
+            themeBtn.title = `${t("theme.toggle")}: ${themeLabel}`;
+            themeBtn.setAttribute("aria-label", `${t("theme.toggle")}: ${themeLabel}`);
         }
     }
 

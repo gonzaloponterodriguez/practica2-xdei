@@ -1,595 +1,205 @@
 # System Architecture
-## Aplicación FIWARE Gestión Inventario – Práctica 2
-
-**Actualización 2026-04-05:** El diagrama Mermaid mostrado en Home queda alineado con los atributos extendidos definidos para `Employee`, `Store` y `Product`.
-**Actualización 2026-04-05:** El backend ejecuta bootstrap idempotente de registros Orion para proveedores externos de `Store` al arrancar la app.
-**Actualización 2026-04-05:** Las consultas backend a Orion incluyen `limit` explícito para evitar truncado por paginación por defecto y degradaciones en vistas agregadas.
-**Actualización 2026-04-05:** Seed de datos reforzado para coherencia de vistas (`Employee.category` y recursos visuales de tiendas).
-**Actualización 2026-04-05:** Se añade módulo de internacionalización frontend (`static/js/i18n.js`) con diccionario ES/EN y toggles persistentes de idioma/tema en cabecera.
-**Actualización 2026-04-05:** El seed `import-data` usa URLs locales para `Product:002` (Bananas: `/static/img/banana.svg`) y `Product:003` (Coconuts: `/static/img/coconut.svg`), eliminando dependencias externas y garantizando carga fiable de la tabla de Products.
-**Actualización 2026-04-05:** La vista `Store Detail` integra Leaflet para ubicación, Three.js en detalle por tienda y refresco reactivo del inventario ante eventos `product_price_changed` para mantener consistencia de precios en vistas visibles.
-**Actualización 2026-04-05:** El agregado `Store -> Shelf -> InventoryItem` expone también estanterías vacías para preservar navegación 3D y acciones por shelf aun sin productos asignados.
-**Actualización 2026-04-05:** Three.js se sirve desde estático local (`static/js/vendor/three.min.js`) para evitar fallos por CDN y asegurar render del recorrido 3D en entornos sin salida a Internet.
-**Actualización 2026-04-05:** El módulo `Store3DView` incorpora una leyenda sincronizada por estantería que lista productos con `shelfCount` y `stockCount`, reutilizando el mismo payload agregado de `Store Detail`.
-**Actualización 2026-04-05:** La capa de presentación incorpora render semántico visual en tablas (badges con iconos, banderas por país, swatches de color) y mapa Leaflet global con marcadores basados en imagen y popup enriquecido (imagen + métricas) con navegación directa al detalle de tienda.
-
-**Diagrama de Alto Nivel:**
-```
-┌─ FRONTEND (localhost:5000) ──────────────────────────────────────┐
-│  • HTML5 + CSS3 + JavaScript (Socket.IO)                         │
-│  • Vistas: Home, Products, Stores, Employees, Stores Map         │
-│  • Dark/Light + ES/EN + Responsive                               │
-└─────────────────────────────────────────────────────────────────┘
-         ↓ HTTP + WebSocket (SocketIO)
-┌─ BACKEND (Flask + Flask-SocketIO) ───────────────────────────────┐
-│  • Port: 5000                                                    │
-│  • Rutas HTTP para CRUD                                          │
-│  • WebSocket listener para cambios Orion                         │
-│  • Emite eventos Socket.IO al frontend                           │
-└─────────────────────────────────────────────────────────────────┘
-         ↓ HTTP (NGSIv2)
-┌─ FIWARE ORION (localhost:1026) ──────────────────────────────────┐
-│  • Context Broker (NGSIv2)                                       │
-│  • Gestión entidades: Employee, Store, Shelf, Product, Item     │
-│  • Registra 2 proveedores contexto                               │
-│  • Emite notificaciones por cambios de precio/stock              │
-└─────────────────────────────────────────────────────────────────┘
-    ↓                          ↓
-MONGODB                   Tutorial Provider
-(BD datos)         (temperature, tweets)
-```
-
----
-
-## 1. Capas de la Aplicación
-
-### 1.1 Capa de Presentación (Frontend)
-
-**Responsabilidades:**
-- Renderizar 5 vistas principales
-- Capturar input usuario (formularios CRUD)
-- Recibir notificaciones Socket.IO y actualizar UI
-- Traducción ES/EN
-- Tema Dark/Light
-
-**Tecnologías:**
-- HTML5 semántico (1 index.html o SPA)
-- CSS3 animations, grid, flexbox
-- JavaScript Socket.IO cliente
-- Leaflet.js (mapas), Three.js (3D), Mermaid (UML)
-
-**Estructura:**
-```
-frontend/
-├── index.html
-├── css/
-│   ├── main.css
-│   ├── dark.css
-│   ├── responsive.css
-├── js/
-│   ├── socket.js (conexión SocketIO)
-│   ├── views.js (renderización vistas)
-│   ├── translations.js (ES/EN)
-│   ├── map.js (Leaflet)
-│   ├── 3d.js (Three.js)
-```
-
-### 1.2 Capa de Aplicación (Backend)
-
-**Responsabilidades:**
-- Rutas HTTP CRUD → Orion
-- Escuchar notificaciones Orion (webhooks)
-- Emitir eventos Socket.IO
-- Gestionar sesiones usuarios
-- Validación datos
-
-**Tecnologías:**
-- Flask 2.x
-- Flask-SocketIO
-- requests (HTTP a Orion)
-- Flask-CORS
-
-**Rutas principales:**
-```
-GET/POST   /api/products
-GET/POST   /api/stores
-GET/POST   /api/employees
-GET/POST   /api/shelves
-GET/POST   /api/inventory
-
-PATCH      /api/inventory/{id}/buy  (compra)
-
-POST       /api/subscriptions/register (registrar en Orion)
-POST       /webhooks/notifications (recibir notificaciones Orion)
-```
-
-### 1.3 Capa de Datos (FIWARE + MongoDB)
-
-**Orion Context Broker:**
-- Almacena entidades NGSIv2
-- Gestiona relaciones (refStore, refShelf, etc)
-- Soporta consultas
-
-**MongoDB:**
-- BD subyacente de Orion
-- Índices en _id.id, _id.type, etc
-
-**Proveedores Contexto:**
-- Tutorial (3000): weather conditions, tweets
-- Auto-registrados al arrancar aplicación
-
----
-
-## 2. Flujo de Comunicación
-
-### 2.1 CRUD Elemento Inventario
-
-```
-1. Frontend: POST /api/inventory {refProduct, refShelf, ...}
-2. Backend: HTTP POST v2/entities a Orion
-3. Orion: Almacena en MongoDB
-4. Orion: Valida atributos NGSIv2
-5. Backend: Responde 201 al frontend
-6. Frontend: Actualiza tabla UI
-```
-
-### 2.2 Notificación Cambio Precio
-
-```
-1. Admin: PATCH /v2/entities/Product:001/attrs {price: 1500}
-2. Orion: Detecta cambio (suscripción activa)
-3. Orion: POST a /webhooks/notifications (backend)
-4. Backend: Parsea NotificationData
-5. Backend: Emite Socket.IO "product_price_changed" 
-6. Frontend: Recibe evento
-7. Frontend: Actualiza elementos con producto en todas vistas
-```
-
-### 2.3 Conexión SocketIO
-
-```
-1. Frontend: io() conecta a localhost:5000
-2. Backend: socket.on conecta cliente
-3. Bidireccional: emit/on eventos real-time
-4. Desconexión: limpia socket
-```
-
----
-
-## 3. Integraciones FIWARE
-
-### 3.1 Registro en Orion
-
-**Al arrancar aplicación:**
-
-```
-// Suscripción 1: Cambio de precio
-POST /v2/subscriptions
-{
-  description: "Product Price Change",
-  subject: {conditions: [{type: "Product"}]},
-  notification: {
-    http: {url: "http://host.docker.internal:5000/webhooks/notifications"}
-  }
-}
-
-// Suscripción 2: Bajo stock
-POST /v2/subscriptions
-{
-  description: "Low Stock Alert",
-  subject: {conditions: [{type: "InventoryItem"}]},
-  notification: {
-    http: {url: "http://host.docker.internal:5000/webhooks/notifications"}
-  }
-}
-
-// Proveedor contexto: Weather
-POST /v2/registrations
-{
-  dataProvided: {
-    entities: [{type: "Store"}],
-    attrs: ["temperature", "relativeHumidity"]
-  },
-  provider: {
-    http: {url: "http://tutorial:3000/proxy/v1/random/weatherConditions"}
-  }
-}
-
-// Proveedor contexto: Tweets
-POST /v2/registrations
-{
-  dataProvided: {
-    entities: [{type: "Store"}],
-    attrs: ["tweets"]
-  },
-  provider: {
-    http: {url: "http://tutorial:3000/proxy/v1/catfacts/tweets"}
-  }
-}
-```
-
-### 3.2 Consultas NGSIv2
-
-```
-// Listar productos
-GET /v2/entities?type=Product
-
-// Obtener tienda específica
-GET /v2/entities/urn:ngsi-ld:Store:001
-
-// Comprar unidad (PATCH con $inc)
-PATCH /v2/entities/urn:ngsi-ld:InventoryItem:001/attrs
-{
-  "shelfCount": {"type": "Integer", "value": {"$inc": -1}},
-  "stockCount": {"type": "Integer", "value": {"$inc": -1}}
-}
-```
-
----
-
-## 4. Notificaciones Real-Time
-
-### 4.1 SocketIO Server-Side (Flask)
-
-```python
-from flask_socketio import emit, join_room
-
-@app.route('/webhooks/notifications', methods=['POST'])
-def handle_orion_notification():
-    data = request.json
-    # Parsear NotificationData
-    # Emitir según tipo cambio
-    if event_type == "price_change":
-        socketio.emit('product_price_changed', {...}, broadcast=True)
-    elif event_type == "low_stock":
-        socketio.emit('low_stock_alert', {...}, broadcast=True)
-    return jsonify({"statusCode": 200})
-
-@socketio.on('connect')
-def on_connect():
-    emit('connected', {'msg': 'Cliente conectado'})
-```
-
-### 4.2 SocketIO Client-Side (JS)
-
-```javascript
-const socket = io();
-
-socket.on('product_price_changed', (data) => {
-    // data: {productId, newPrice}
-    updateProductInAllViews(data.productId, data.newPrice);
-    showNotification('Precio actualizado');
-});
-
-socket.on('low_stock_alert', (data) => {
-    // data: {inventoryItemId, newStock, store}
-    showNotification(`Stock bajo: ${data.store}`);
-});
-```
-
----
-
-## 5. Proveedores Contexto Externo
-
-**Ubicación:** Tutorial Docker container (:3000)
-
-**Endpoints:**
-- /proxy/v1/random/weatherConditions → temperature, relativeHumidity aleatorios
-- /proxy/v1/catfacts/tweets → tweets aleatorios
-
-**Registro automático** al arrancar (en init.py o main.py):
-```python
-def register_context_providers():
-    # POST /v2/registrations para weather
-    # POST /v2/registrations para tweets
-```
-
-**Consumo en frontend:**
-- Leer atributos temperature/relativeHumidity de Store
-- Mostrar iconos coloreados según rango
-- Actualizar via notificaciones Socket.IO
-
----
-
-## 6. Validaciones
-
-### 6.1 Lado Cliente (HTML5 + JS)
-
-```html
-<input type="email" name="email" required>
-<input type="password" name="password" minlength="8">
-<input type="number" name="capacity" min="0" max="10000">
-<input type="tel" name="telephone" pattern="+?[0-9]*">
-<input type="color" name="color">
-```
-
-```javascript
-// Validación JS para lógica compleja
-function validateProduct(product) {
-    if (!product.color.match(/^#[0-9A-F]{6}$/i)) return false;
-    if (product.price <= 0) return false;
-    return true;
-}
-```
-
-### 6.2 Lado Servidor (Flask)
-
-```python
-@app.route('/api/products', methods=['POST'])
-def create_product():
-    data = request.json
-    # Validar formato color hexadecimal
-    # Validar price > 0
-    # POST a Orion
-    pass
-```
-
----
-
-## 7. Ambiente de Desarrollo
-
-### 7.1 Docker Compose (3 servicios)
-
-```yaml
-services:
-  orion:
-    image: quay.io/fiware/orion:4.1.0
-    ports: "1026:1026"
-    depends_on: 
-      - mongo-db
-    
-  mongo-db:
-    image: mongo:6.0
-    ports: "27017:27017"
-    
-  tutorial:
-    image: quay.io/fiware/tutorials.context-provider
-    ports: "3000:3000"
-    depends_on:
-      - orion
-```
-
-### 7.2 Variables de Entorno (.env)
-
-```
-COMPOSE_PROJECT_NAME=fiware
-ORION_PORT=1026
-MONGO_DB_PORT=27017
-TUTORIAL_APP_PORT=3000
-```
-
-### 7.3 Requirements Python
-
-```
-Flask==2.3.0
-Flask-SocketIO==5.3.0
-Flask-CORS==4.0.0
-requests==2.31.0
-python-socketio==5.9.0
-```
-
----
-
-## 8. Deployment y Escalado
-
-- Desarrollo local: Docker Compose
-- Frontend: Servir desde Flask (static/)
-- CORS habilitado para desarrollo
-- En producción: separar frontend (nginx) / backend (gunicorn + socketio)
-
----
-
-## 9. Flujo GitHub Flow
-
-1. **Issue creado** con plan de implementación
-2. **Rama feature/issue-name** desde main
-3. **Commits locales** con cambios
-4. **Push a origin** de la rama
-5. **Pull Request** para review
-6. **Merge a main** tras aprobación
-7. **Actualizar PRD/architecture/data_model** tras cada merge
-
----
-
-## 10. Estado de Implementación del Issue #1
-
-Implementado en la rama `feature/modelo-datos-ampliado`:
-
-- Carga de datos ampliada en `import-data` con modelo NGSIv2 completo.
-- 4 `Store` con atributos extendidos (`url`, `telephone`, `countryCode`, `capacity`, `description`, `image`).
-- 4 `Employee` (1 por tienda) con nuevos atributos del enunciado.
-- 10 `Product` con atributo `color` hexadecimal y `image`.
-- 16 `Shelf` (4 por tienda) y 64 `InventoryItem` (>=4 por estanteria).
-- 2 registros de proveedores de contexto (`weather/humidity` y `tweets`) para las 4 tiendas.
-- 2 suscripciones NGSIv2 con callback a `host.docker.internal`.
-
----
-
-## 11. Estado de Implementación del Issue #3
-
-Implementado en la rama `feature/notifications-socketio`:
-
-- **Servidor Flask-SocketIO** (`app.py` ~250 líneas):
-  - Escucha en puerto 5000 con WebSocket + HTTP polling fallback.
-  - Endpoint `/webhooks/notifications` (POST) recibe eventos NGSIv2 de Orion.
-  - Mapeo de eventos: `Product.price` → `product_price_changed`, `InventoryItem.stock<5` → `stock_alert`.
-  - Emite a todos los clientes conectados Socket.IO.
-  - Eventos Socket.IO servidor: `connection_established`, `product_price_changed`, `stock_alert`, `server_status`, `pong`.
-
-- **Cliente Socket.IO** (`static/js/socket-client.js` ~180 líneas):
-  - Conexión automática al servidor con auto-reconexión (1-5s, max 10 intentos).
-  - Keepalive ping cada 30 segundos.
-  - Listeners para eventos del servidor y actualización UI en tiempo real.
-  - Filtrado de notificaciones por tipo (todos/precio/stock).
-  - Manejo de desconexión y UI estado.
-
-- **Frontend minimo** (`templates/index.html` + `static/css/main.css`):
-  - Interfaz responsive con panel de notificaciones.
-  - Indicador visual conexión (verde=conectado, rojo=desconectado).
-  - Estadísticas: clientes conectados, total notificaciones, última actualización.
-  - Notificaciones coloreadas por tipo (amarillo precio, rojo stock).
-  - Estilos gradiente, animaciones, scroll infinito en historial.
-
-- **Documentación** (`README.md` + `requirements.txt`):
-  - Instrucciones instalación, validación, troubleshooting.
-  - Ejemplos curl para disparar eventos manuales.
-  - Estructura de directorios y endpoints.
-  - Tabla de eventos Socket.IO.
-
-- **Validación end-to-end**:
-  - Webhook recibe y procesa eventos de Orion.
-  - Suscripciones NGSIv2 activas apuntando a Flask.
-  - Cambios en Orion generan eventos en navegador.
-  - Cliente reconecta automáticamente tras desconexión.
-
----
-
-## 12. Estado de Implementación del Issue #5
-
-Implementado en la rama `feature/ui-forms-crud`:
-
-- **Arquitectura frontend multi-vista (SPA ligera con hash router):**
-  - Vista `Home` con diagrama UML Mermaid + KPIs de entidades.
-  - Vista `Products` con tabla y formularios modal para alta/edición.
-  - Vista `Employees` con tabla y formularios modal para alta/edición.
-  - Navegación sticky con sección activa y soporte responsive.
-
-- **Capa de API backend en Flask (proxy Orion):**
-  - Nuevo endpoint `GET /api/summary` para KPIs.
-  - Nuevo endpoint `GET /api/stores` para poblar selector `refStore`.
-  - CRUD de productos:
-    - `GET /api/products`
-    - `POST /api/products`
-    - `PATCH /api/products/<id>`
-    - `DELETE /api/products/<id>`
-  - CRUD de empleados:
-    - `GET /api/employees`
-    - `POST /api/employees`
-    - `PATCH /api/employees/<id>`
-    - `DELETE /api/employees/<id>`
-
-- **Validación y robustez:**
-  - Validación server-side de `Product` y `Employee` antes de enviar a Orion.
-  - Validación client-side (HTML5 + JS) para experiencia inmediata en formularios.
-  - Respuesta de error estandarizada (`status`, `message`, `fieldErrors`).
-
-- **Integración con tiempo real existente:**
-  - Se mantiene la recepción de webhooks Orion en `/webhooks/notifications`.
-  - Los eventos Socket.IO actualizan panel de notificaciones y disparan refresco de productos tras cambios de precio.
-
-- **Componentes frontend añadidos:**
-  - `static/js/api.js` (cliente HTTP + utilidades de errores)
-  - `static/js/router.js` (enrutado de vistas + tema)
-  - `static/js/products.js` (CRUD products)
-  - `static/js/employees.js` (CRUD employees)
-
----
-
-## 13. Estado de Implementación del Issue #7
-
-Implementado en la rama `feature/vista-product-grouped-inventory`:
-
-- **Vista Product detail (frontend):**
-  - Nueva vista `product-detail` accesible desde la tabla de Products (botón `View`).
-  - Tabla agrupada por Store con subfilas por Shelf.
-  - Fila de Store muestra `stockCount` agregado por Product en dicha tienda.
-  - Filas de Shelf muestran `shelfCount` por ubicación.
-
-- **Flujo Add InventoryItem por Store:**
-  - En cada cabecera de Store hay botón `Add InventoryItem`.
-  - Apertura de modal con select de Shelves disponibles para ese Product+Store.
-  - Selección dinámica de Shelves elegibles (sin duplicados existentes).
-
-- **Nuevos endpoints backend (Flask + Orion proxy):**
-  - `GET /api/products/<id>/inventory-grouped`
-  - `GET /api/products/<id>/available-shelves?storeId=<id>`
-  - `POST /api/products/<id>/inventory-items`
-
-- **Reglas de consistencia implementadas:**
-  - Prohibición de duplicar InventoryItem para misma combinación `refProduct + refShelf`.
-  - Validación de pertenencia `Shelf -> Store` antes de crear InventoryItem.
-  - Respuestas de error consistentes para casos de validación y conflicto.
-
-- **Compatibilidad y regresión:**
-  - Se mantiene router hash SPA y notificaciones Socket.IO activas.
-  - El tab activo para `product-detail` se mantiene en `Products` para navegación consistente.
-
----
-
-## 14. Estado de Implementación del Issue #9
-
-Implementado en la rama `feature/vista-store-core`:
-
-- **Vista `store-detail` (frontend SPA):**
-  - Nueva ruta hash `#store-detail` y asociación de navegación con sección `Stores`.
-  - Pantalla de detalle con métricas de Store (`temperature`, `relativeHumidity`) y bloque de `tweets`.
-  - Tabla agrupada por Shelf con cabeceras de grupo y filas hijas de Products.
-
-- **Operaciones de dominio en Store detail:**
-  - Alta de Shelf para un Store (`POST /api/stores/<id>/shelves`).
-  - Edición de Shelf (`PATCH /api/shelves/<id>`).
-  - Alta de InventoryItem desde Store+Shelf (`POST /api/stores/<id>/inventory-items`).
-  - Acción de compra unitaria con decremento atómico en Orion (`POST /api/inventory-items/<id>/buy`).
-  - Carga de Products elegibles por Shelf (`GET /api/stores/<id>/available-products?shelfId=<id>`).
-
-- **Capa de agregación backend (Flask):**
-  - Endpoint `GET /api/stores/<id>/inventory-grouped` para componer proyección de lectura agrupada por Shelf.
-  - Cálculo de ocupación por Shelf: `fillCount`, `maxCapacity`, `fillPercent`.
-  - Enriquecimiento con datos de Product (`name`, `price`, `size`, `color`, `image`).
-
-- **Eventos tiempo real en detalle de Store:**
-  - Integración con `product_price_changed` y `stock_alert` para poblar panel local de notificaciones.
-  - Extensión del cliente Socket.IO para emitir evento interno `app:stock-alert`.
-
----
-
-## 15. Estado de Implementación del Issue #11
-
-Implementado en la rama `feature/store-part-a-map-ui`:
-
-- **Soporte geoespacial en capa backend (Flask):**
-  - Validación de `longitude`/`latitude` en `Store`.
-  - Conversión de coordenadas a `location` NGSIv2 (`geo:json Point`).
-  - Nuevo endpoint `GET /api/stores/<id>` para lectura de detalle individual.
-  - Enriquecimiento de `GET /api/stores/<id>/inventory-grouped` con datos de ubicación del Store.
-
-- **Mapa Leaflet en frontend:**
-  - Integración de Leaflet por CDN en la aplicación.
-  - Mapa en `store-detail` centrado en la tienda seleccionada.
-  - Nueva vista `store-map` con markers para todas las tiendas con coordenadas.
-  - Comportamiento de markers: hover con popup resumen y click para navegar a detalle.
-
-- **Mejoras visuales en Store detail:**
-  - Barra de progreso de llenado por Shelf con codificación cromática por umbrales.
-  - Chips de temperatura/humedad con iconografía y estados visuales por rango.
-  - Tweets con icono estilo X para mejorar legibilidad visual.
-
-- **Decisión de alcance:**
-  - Three.js se deja fuera del Issue #11 y se implementará en un issue posterior (Part B).
-
----
-
-## 16. Estado de Implementación del Issue #13
-
-Implementado en la rama `feature/store-part-b-threejs`:
-
-- **Motor 3D en frontend:**
-  - Nuevo módulo `static/js/store-3d.js` con clase dedicada para escena Three.js.
-  - Gestión de ciclo de vida: inicialización, render continuo, resize, y destrucción limpia al salir de la vista.
-
-- **Representación inmersiva procedural:**
-  - Construcción de layout de estanterías a partir de `shelves[]` de `GET /api/stores/<id>/inventory-grouped`.
-  - Render de productos por estantería con altura y color derivados de atributos de inventario/producto.
-  - Indicador visual de nivel de llenado por estantería dentro de la escena.
-
-- **Interacción y navegación 3D:**
-  - Controles pointer+wheel para orbitar y zoom sobre la escena.
-  - API de foco por estantería (`focusNextShelf`, `focusShelfById`) integrada con la tabla de Store detail.
-  - Botones UI para `Reset Camera` y `Focus Next Shelf`.
-
-- **Integración con Store detail existente:**
-  - `static/js/stores.js` actualiza y sincroniza escena 3D al cargar/refrescar Store detail.
-  - Sin cambios contractuales obligatorios en backend: reutilización de endpoint agregado ya existente.
-
-- **Decisión de diseño:**
-  - Se adopta estrategia procedural para entrega rápida y desacoplada de cambios de modelo.
+## Aplicacion FIWARE Gestion Inventario - Practica 2
+
+Version documental: 1.2  
+Ultima actualizacion: 2026-04-06
+
+## 1. Vision de alto nivel
+
+Arquitectura web de 3 capas:
+
+1. Frontend SPA ligera servida por Flask.
+2. Backend Flask + Flask-SocketIO como API y puente NGSIv2.
+3. FIWARE Orion + MongoDB + tutorial provider.
+
+Flujo principal:
+
+- Frontend consume API HTTP del backend.
+- Backend proxya operaciones a Orion (NGSIv2).
+- Orion notifica cambios al webhook del backend.
+- Backend reemite eventos por Socket.IO al frontend.
+
+## 2. Componentes actuales
+
+### 2.1 Frontend
+
+Ubicacion:
+
+- templates/index.html
+- static/css/main.css
+- static/js/api.js
+- static/js/router.js
+- static/js/i18n.js
+- static/js/products.js
+- static/js/employees.js
+- static/js/stores.js
+- static/js/store-3d.js
+- static/js/socket-client.js
+- static/js/vendor/three.min.js
+
+Responsabilidades:
+
+- Render de vistas y formularios.
+- Navegacion hash route.
+- Internacionalizacion ES/EN.
+- Tema claro/oscuro persistente.
+- Integracion de mapas Leaflet, UML Mermaid y recorrido 3D Three.js.
+- Consumo de eventos Socket.IO para actualizaciones real-time.
+
+### 2.2 Backend
+
+Ubicacion:
+
+- app.py
+
+Responsabilidades:
+
+- Exponer endpoints REST usados por frontend.
+- Validar payloads y construir entidades/attrs NGSIv2.
+- Orquestar consultas agregadas para Product Detail y Store Detail.
+- Gestionar webhook de Orion y publicar eventos Socket.IO.
+- Registrar providers de contexto externos de forma idempotente al arranque.
+
+### 2.3 Capa de datos y servicios FIWARE
+
+- Orion Context Broker (NGSIv2).
+- MongoDB (persistencia Orion).
+- Tutorial provider para atributos externos de Store.
+
+## 3. Contratos HTTP actuales
+
+### 3.1 Sistema
+
+- GET /
+- GET /health
+- POST /webhooks/notifications
+
+### 3.2 Summary
+
+- GET /api/summary
+
+### 3.3 Stores
+
+- GET /api/stores
+- GET /api/stores/<entity_id>
+- POST /api/stores
+- PATCH /api/stores/<entity_id>
+- DELETE /api/stores/<entity_id>
+- GET /api/stores/<entity_id>/inventory-grouped
+- GET /api/stores/<entity_id>/available-products?shelfId=<id>
+- POST /api/stores/<entity_id>/shelves
+- POST /api/stores/<entity_id>/inventory-items
+
+### 3.4 Shelves
+
+- PATCH /api/shelves/<entity_id>
+
+### 3.5 Inventory items
+
+- POST /api/inventory-items/<entity_id>/buy
+
+### 3.6 Products
+
+- GET /api/products
+- POST /api/products
+- PATCH /api/products/<entity_id>
+- DELETE /api/products/<entity_id>
+- GET /api/products/<entity_id>/inventory-grouped
+- GET /api/products/<entity_id>/available-shelves?storeId=<id>
+- POST /api/products/<entity_id>/inventory-items
+
+### 3.7 Employees
+
+- GET /api/employees
+- POST /api/employees
+- PATCH /api/employees/<entity_id>
+- DELETE /api/employees/<entity_id>
+
+## 4. Eventos Socket.IO actuales
+
+Servidor -> cliente:
+
+- connection_established
+- product_price_changed
+- stock_alert
+- server_status
+- pong
+
+Cliente -> servidor:
+
+- ping
+- get_status
+
+## 5. Flujo de notificaciones
+
+1. Orion detecta cambio suscrito (price o stockCount).
+2. Orion envia POST a /webhooks/notifications.
+3. Backend transforma payload NGSIv2 en evento de dominio UI.
+4. Backend emite evento Socket.IO a namespace raiz.
+5. Frontend actualiza tablas/paneles sin recarga completa.
+
+## 6. Integracion con Orion
+
+### 6.1 Providers de contexto registrados
+
+- weatherConditions para temperature y relativeHumidity.
+- catfacts tweets para tweets.
+
+URLs actualmente configuradas:
+
+- http://tutorial:3000/random/weatherConditions
+- http://tutorial:3000/catfacts/tweets
+
+### 6.2 Suscripciones usadas
+
+- Product price changes -> webhook backend.
+- Low stock alerts en InventoryItem (stockCount < 5) -> webhook backend.
+
+## 7. Modelo de navegacion frontend
+
+Rutas hash soportadas:
+
+- #home
+- #products
+- #product-detail
+- #stores
+- #store-detail
+- #store-map
+- #employees
+
+La seleccion de nav activa se basa en hashchange y mapeo de ruta vista.
+
+## 8. Persistencia de estado de UI
+
+- Idioma (lang) en localStorage.
+- Tema (theme) en localStorage.
+- Estado de notificaciones y filtros en memoria cliente.
+
+## 9. Validaciones y robustez
+
+Backend valida reglas de dominio en create/update:
+
+- Product: color hex, size permitido, price entero > 0.
+- Employee: email, dateOfContract, category, skills, username, password, refStore.
+- Store: countryCode, temperatura, humedad, coordenadas y URL.
+
+Respuestas de error normalizadas:
+
+- status
+- message
+- fieldErrors (cuando aplica)
+
+## 10. Datos iniciales
+
+El script import-data:
+
+- Es compatible con /bin/ash.
+- Carga Stores, Employees, Products, Shelves e InventoryItems.
+- Registra providers y suscripciones.
+- Verifica conteos minimos en Orion y falla si no se cumplen.
+
+## 11. Decisiones tecnicas vigentes
+
+- Three.js se sirve en modo offline-first desde static/js/vendor/three.min.js, con fallback remoto opcional gestionado en frontend.
+- Store Detail siempre incluye estanterias vacias para consistencia operativa y visual en tabla y 3D.
+- Modo oscuro y i18n se aplican por capa de presentacion sin alterar contratos NGSIv2.
