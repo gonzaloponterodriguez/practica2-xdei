@@ -1,0 +1,566 @@
+(function initI18n() {
+    const DICT = {
+        es: {
+            "app.title": "Sistema FIWARE Inventario",
+            "theme.toggle": "Tema",
+            "theme.light": "Claro",
+            "theme.dark": "Oscuro",
+            "language.toggle": "Idioma",
+            "language.es": "ES",
+            "language.en": "EN",
+            "nav.home": "Inicio",
+            "nav.products": "Productos",
+            "nav.stores": "Tiendas",
+            "nav.storeMap": "Mapa de Tiendas",
+            "nav.employees": "Empleados",
+            "home.kpi.products": "Productos",
+            "home.kpi.employees": "Empleados",
+            "home.kpi.stores": "Tiendas",
+            "home.kpi.inventoryItems": "Items de Inventario",
+            "home.umlTitle": "Diagrama UML",
+            "products.title": "Productos",
+            "products.searchPlaceholder": "Buscar por nombre",
+            "products.add": "Anadir Producto",
+            "products.empty": "No hay productos disponibles.",
+            "productDetail.title": "Detalle de Producto",
+            "productDetail.back": "Volver a Productos",
+            "productDetail.empty": "No se encontraron items de inventario para este producto.",
+            "productDetail.storeShelf": "Tienda / Estanteria",
+            "productDetail.stockCount": "Stock",
+            "productDetail.shelfCount": "Estanteria",
+            "employees.title": "Empleados",
+            "employees.searchPlaceholder": "Buscar por nombre/email",
+            "employees.add": "Anadir Empleado",
+            "employees.empty": "No hay empleados disponibles.",
+            "stores.title": "Tiendas",
+            "stores.searchPlaceholder": "Buscar por nombre/pais",
+            "stores.add": "Anadir Tienda",
+            "stores.empty": "No hay tiendas disponibles.",
+            "storeDetail.title": "Detalle de Tienda",
+            "storeDetail.back": "Volver a Tiendas",
+            "storeDetail.addShelf": "Anadir Estanteria",
+            "storeDetail.temperature": "Temperatura",
+            "storeDetail.humidity": "Humedad",
+            "storeDetail.tweets": "Tweets",
+            "storeDetail.empty": "No se encontraron items de inventario para esta tienda.",
+            "storeDetail.notifications": "Notificaciones de Tienda",
+            "storeDetail.shelfProduct": "Estanteria / Producto",
+            "storeDetail.noNotifications": "Todavia no hay notificaciones para esta tienda.",
+            "storeDetail.noTweets": "-",
+            "storeDetail.noCoordinates": "Esta tienda todavia no tiene coordenadas.",
+            "storeMap.title": "Mapa de Tiendas",
+            "storeMap.empty": "Las tiendas con coordenadas apareceran aqui.",
+            "three.title": "Recorrido Inmersivo",
+            "three.reset": "Reiniciar Camara",
+            "three.focusNext": "Siguiente Estanteria",
+            "three.status": "Mover: arrastra el puntero. Zoom: rueda del raton / panel tactil.",
+            "three.unavailable": "Vista 3D no disponible (Three.js no cargado).",
+            "three.summary": "Estanterias: {{shelves}} | Productos: {{products}} | Arrastra para girar, rueda para zoom.",
+            "three.focusedShelf": "Estanteria enfocada: {{shelf}}",
+            "three.pickedProduct": "{{product}} | stock={{stock}} estanteria={{shelf}}",
+            "three.noShelves": "No hay estanterias para mostrar.",
+            "three.noProductsInShelf": "Sin productos en esta estanteria.",
+            "debug.client": "Cliente",
+            "debug.server": "Servidor",
+            "debug.ws": "WS",
+            "table.image": "Imagen",
+            "table.name": "Nombre",
+            "table.color": "Color",
+            "table.size": "Talla",
+            "table.price": "Precio",
+            "table.actions": "Acciones",
+            "table.photo": "Foto",
+            "table.email": "Email",
+            "table.category": "Categoria",
+            "table.skills": "Skills",
+            "table.username": "Usuario",
+            "table.store": "Tienda",
+            "table.contract": "Contrato",
+            "table.country": "Pais",
+            "form.name": "Nombre",
+            "form.color": "Color",
+            "form.size": "Talla",
+            "form.selectSize": "Selecciona talla",
+            "form.price": "Precio",
+            "form.imageUrl": "URL de imagen",
+            "form.email": "Email",
+            "form.dateOfContract": "Fecha de contrato",
+            "form.category": "Categoria",
+            "form.selectCategory": "Selecciona categoria",
+            "form.skills": "Skills",
+            "form.username": "Usuario",
+            "form.password": "Contrasena",
+            "form.store": "Tienda",
+            "form.selectStore": "Selecciona tienda",
+            "form.countryCode": "Codigo de pais",
+            "form.longitude": "Longitud",
+            "form.latitude": "Latitud",
+            "form.telephone": "Telefono",
+            "form.url": "URL",
+            "form.capacity": "Capacidad",
+            "form.description": "Descripcion",
+            "form.shelf": "Estanteria",
+            "form.product": "Producto",
+            "form.shelfCount": "Cantidad en estanteria",
+            "form.stockCount": "Cantidad en stock",
+            "shelfForm.title": "Estanteria",
+            "shelfForm.newTitle": "Nueva Estanteria",
+            "shelfForm.editTitle": "Editar Estanteria",
+            "shelfForm.maxCapacity": "Capacidad maxima",
+            "productForm.newTitle": "Nuevo Producto",
+            "productForm.editTitle": "Editar Producto",
+            "employeeForm.newTitle": "Nuevo Empleado",
+            "employeeForm.editTitle": "Editar Empleado",
+            "storeForm.newTitle": "Nueva Tienda",
+            "storeForm.editTitle": "Editar Tienda",
+            "inventory.addToShelfTitle": "Anadir InventoryItem a la estanteria",
+            "inventory.noAvailableShelves": "No hay estanterias disponibles",
+            "inventory.noShelvesForProduct": "No hay estanterias disponibles para este producto en la tienda.",
+            "inventory.noAvailableProducts": "No hay productos disponibles",
+            "inventory.noProductsForShelf": "No hay productos disponibles para esta estanteria.",
+            "storeNotif.priceTitle": "Precio actualizado",
+            "storeNotif.stockTitle": "Alerta de stock",
+            "storeNotif.price": "{{product}}: EUR {{price}}",
+            "storeNotif.stock": "{{entityId}}: stock={{currentStock}}, estanteria={{shelfStock}}",
+            "fallback.product": "Producto",
+            "fallback.inventoryItem": "InventoryItem",
+            "actions.view": "Ver",
+            "actions.edit": "Editar",
+            "actions.delete": "Borrar",
+            "actions.addInventoryItem": "Anadir InventoryItem",
+            "actions.editShelf": "Editar Estanteria",
+            "actions.buyUnit": "Comprar unidad",
+            "alerts.loadProducts": "No se pudieron cargar productos.",
+            "alerts.loadEmployees": "No se pudieron cargar empleados.",
+            "alerts.loadStores": "No se pudieron cargar tiendas.",
+            "errors.min2": "Minimo 2 caracteres.",
+            "errors.invalidColor": "Color invalido #RRGGBB.",
+            "errors.selectSize": "Selecciona una talla.",
+            "errors.pricePositive": "Precio entero mayor que 0.",
+            "errors.saveProduct": "Error guardando producto.",
+            "errors.deleteProduct": "No se pudo borrar el producto.",
+            "errors.loadProductDetail": "No se pudo cargar el detalle del producto.",
+            "errors.loadAvailableShelves": "No se pudieron cargar estanterias disponibles.",
+            "errors.selectShelf": "Selecciona una estanteria.",
+            "errors.createInventoryItem": "No se pudo crear InventoryItem.",
+            "errors.invalidEmail": "Email invalido.",
+            "errors.requiredDate": "Fecha requerida.",
+            "errors.selectCategory": "Selecciona una categoria.",
+            "errors.selectSkill": "Selecciona al menos una skill.",
+            "errors.invalidUsername": "Usuario invalido.",
+            "errors.minPassword": "Contrasena minimo 8 caracteres.",
+            "errors.selectStore": "Selecciona una tienda.",
+            "errors.saveEmployee": "Error guardando empleado.",
+            "errors.deleteEmployee": "No se pudo borrar el empleado.",
+            "errors.saveStore": "Error guardando tienda.",
+            "errors.deleteStore": "No se pudo borrar la tienda.",
+            "errors.countryCode": "Codigo de pais de 2 letras.",
+            "errors.temperatureRange": "Temperatura entre -50 y 50.",
+            "errors.humidityRange": "Humedad entre 0 y 100.",
+            "errors.invalidUrl": "URL invalida.",
+            "errors.invalidImageUrl": "URL de imagen invalida.",
+            "errors.longitudeRange": "Longitud entre -180 y 180.",
+            "errors.latitudeRange": "Latitud entre -90 y 90.",
+            "errors.saveShelf": "No se pudo guardar la estanteria.",
+            "errors.maxCapacityPositive": "Capacidad entera mayor que 0.",
+            "errors.loadAvailableProducts": "No se pudieron cargar productos disponibles.",
+            "errors.selectProduct": "Selecciona un producto.",
+            "errors.nonNegativeInventory": "Stock y estanteria deben ser enteros >= 0.",
+            "errors.loadStoreDetail": "No se pudo cargar el detalle de la tienda.",
+            "errors.registerPurchase": "No se pudo registrar la compra.",
+            "confirm.deleteProduct": "¿Borrar este producto?",
+            "confirm.deleteEmployee": "¿Borrar este empleado?",
+            "confirm.deleteStore": "¿Borrar esta tienda?",
+            "success.productUpdated": "Producto actualizado",
+            "success.productCreated": "Producto creado",
+            "success.productDeleted": "Producto borrado",
+            "success.employeeUpdated": "Empleado actualizado",
+            "success.employeeCreated": "Empleado creado",
+            "success.employeeDeleted": "Empleado borrado",
+            "success.storeUpdated": "Tienda actualizada",
+            "success.storeCreated": "Tienda creada",
+            "success.storeDeleted": "Tienda borrada",
+            "success.shelfUpdated": "Estanteria actualizada",
+            "success.shelfCreated": "Estanteria creada",
+            "success.inventoryItemCreated": "InventoryItem creado",
+            "success.purchaseRegistered": "Compra registrada",
+            "confirm.deleteProduct": "¿Borrar este producto?",
+            "confirm.deleteEmployee": "¿Borrar este empleado?",
+            "confirm.deleteStore": "¿Borrar esta tienda?",
+            "status.connected": "Conectado",
+            "status.disconnected": "Desconectado",
+            "notifications.title": "Notificaciones en Tiempo Real",
+            "notifications.clients": "Clientes",
+            "notifications.events": "Eventos",
+            "notifications.lastUpdate": "Ult. update",
+            "notifications.filter.all": "Todas",
+            "notifications.filter.price": "Precio",
+            "notifications.filter.stock": "Stock",
+            "notifications.filter.clear": "Limpiar",
+            "notifications.empty": "Esperando notificaciones de Orion...",
+            "notifications.reconnect": "Reconectar",
+            "notifications.entity": "Entidad",
+            "notif.connection.title": "Conexion establecida",
+            "notif.connection.message": "Conectado al servidor de notificaciones",
+            "notif.disconnected.title": "Desconectado",
+            "notif.disconnected.message": "Se perdio la conexion con el servidor",
+            "notif.connection.error": "Error de conexion",
+            "notif.price.title": "Cambio de Precio",
+            "notif.price.message": "{{product}}: EUR {{price}}",
+            "notif.stock.title": "Bajo Stock",
+            "notif.stock.message": "Item {{entityId}}: Stock={{currentStock}} (Estanteria={{shelfStock}})",
+            "footer.issue": "XDEI Práctica 2"
+        },
+        en: {
+            "app.title": "FIWARE Inventory System",
+            "theme.toggle": "Theme",
+            "theme.light": "Light",
+            "theme.dark": "Dark",
+            "language.toggle": "Language",
+            "language.es": "ES",
+            "language.en": "EN",
+            "nav.home": "Home",
+            "nav.products": "Products",
+            "nav.stores": "Stores",
+            "nav.storeMap": "Stores Map",
+            "nav.employees": "Employees",
+            "home.kpi.products": "Products",
+            "home.kpi.employees": "Employees",
+            "home.kpi.stores": "Stores",
+            "home.kpi.inventoryItems": "Inventory Items",
+            "home.umlTitle": "UML Diagram",
+            "products.title": "Products",
+            "products.searchPlaceholder": "Search by name",
+            "products.add": "Add Product",
+            "products.empty": "No products available.",
+            "productDetail.title": "Product Detail",
+            "productDetail.back": "Back to Products",
+            "productDetail.empty": "No inventory items found for this product.",
+            "productDetail.storeShelf": "Store / Shelf",
+            "productDetail.stockCount": "Stock",
+            "productDetail.shelfCount": "Shelf",
+            "employees.title": "Employees",
+            "employees.searchPlaceholder": "Search by name/email",
+            "employees.add": "Add Employee",
+            "employees.empty": "No employees available.",
+            "stores.title": "Stores",
+            "stores.searchPlaceholder": "Search by name/country",
+            "stores.add": "Add Store",
+            "stores.empty": "No stores available.",
+            "storeDetail.title": "Store Detail",
+            "storeDetail.back": "Back to Stores",
+            "storeDetail.addShelf": "Add Shelf",
+            "storeDetail.temperature": "Temperature",
+            "storeDetail.humidity": "Humidity",
+            "storeDetail.tweets": "Tweets",
+            "storeDetail.empty": "No inventory items found for this store.",
+            "storeDetail.notifications": "Store Notifications",
+            "storeDetail.shelfProduct": "Shelf / Product",
+            "storeDetail.noNotifications": "No notifications for this store yet.",
+            "storeDetail.noTweets": "-",
+            "storeDetail.noCoordinates": "This store has no coordinates yet.",
+            "storeMap.title": "Stores Map",
+            "storeMap.empty": "Stores with coordinates will appear here.",
+            "three.title": "Immersive Walkthrough",
+            "three.reset": "Reset Camera",
+            "three.focusNext": "Focus Next Shelf",
+            "three.status": "Move: drag pointer. Zoom: mouse wheel / touch pad.",
+            "three.unavailable": "3D view unavailable (Three.js not loaded).",
+            "three.summary": "Shelves: {{shelves}} | Products: {{products}} | Drag to rotate, wheel to zoom.",
+            "three.focusedShelf": "Focused shelf: {{shelf}}",
+            "three.pickedProduct": "{{product}} | stock={{stock}} shelf={{shelf}}",
+            "three.noShelves": "No shelves to display.",
+            "three.noProductsInShelf": "No products in this shelf.",
+            "debug.client": "Client",
+            "debug.server": "Server",
+            "debug.ws": "WS",
+            "table.image": "Image",
+            "table.name": "Name",
+            "table.color": "Color",
+            "table.size": "Size",
+            "table.price": "Price",
+            "table.actions": "Actions",
+            "table.photo": "Photo",
+            "table.email": "Email",
+            "table.category": "Category",
+            "table.skills": "Skills",
+            "table.username": "Username",
+            "table.store": "Store",
+            "table.contract": "Contract",
+            "table.country": "Country",
+            "form.name": "Name",
+            "form.color": "Color",
+            "form.size": "Size",
+            "form.selectSize": "Select size",
+            "form.price": "Price",
+            "form.imageUrl": "Image URL",
+            "form.email": "Email",
+            "form.dateOfContract": "Date of contract",
+            "form.category": "Category",
+            "form.selectCategory": "Select category",
+            "form.skills": "Skills",
+            "form.username": "Username",
+            "form.password": "Password",
+            "form.store": "Store",
+            "form.selectStore": "Select store",
+            "form.countryCode": "Country code",
+            "form.longitude": "Longitude",
+            "form.latitude": "Latitude",
+            "form.telephone": "Telephone",
+            "form.url": "URL",
+            "form.capacity": "Capacity",
+            "form.description": "Description",
+            "form.shelf": "Shelf",
+            "form.product": "Product",
+            "form.shelfCount": "Shelf Count",
+            "form.stockCount": "Stock Count",
+            "shelfForm.title": "Shelf",
+            "shelfForm.newTitle": "New Shelf",
+            "shelfForm.editTitle": "Edit Shelf",
+            "shelfForm.maxCapacity": "Max Capacity",
+            "productForm.newTitle": "New Product",
+            "productForm.editTitle": "Edit Product",
+            "employeeForm.newTitle": "New Employee",
+            "employeeForm.editTitle": "Edit Employee",
+            "storeForm.newTitle": "New Store",
+            "storeForm.editTitle": "Edit Store",
+            "inventory.addToShelfTitle": "Add InventoryItem to Shelf",
+            "inventory.noAvailableShelves": "No available shelves",
+            "inventory.noShelvesForProduct": "No shelves are available for this product in the store.",
+            "inventory.noAvailableProducts": "No available products",
+            "inventory.noProductsForShelf": "No products are available for this shelf.",
+            "storeNotif.priceTitle": "Price updated",
+            "storeNotif.stockTitle": "Stock alert",
+            "storeNotif.price": "{{product}}: EUR {{price}}",
+            "storeNotif.stock": "{{entityId}}: stock={{currentStock}}, shelf={{shelfStock}}",
+            "fallback.product": "Product",
+            "fallback.inventoryItem": "InventoryItem",
+            "actions.view": "View",
+            "actions.edit": "Edit",
+            "actions.delete": "Delete",
+            "actions.addInventoryItem": "Add InventoryItem",
+            "actions.editShelf": "Edit Shelf",
+            "actions.buyUnit": "Buy Unit",
+            "alerts.loadProducts": "Could not load products.",
+            "alerts.loadEmployees": "Could not load employees.",
+            "alerts.loadStores": "Could not load stores.",
+            "errors.min2": "Minimum 2 characters.",
+            "errors.invalidColor": "Invalid color #RRGGBB.",
+            "errors.selectSize": "Select a size.",
+            "errors.pricePositive": "Price must be an integer greater than 0.",
+            "errors.saveProduct": "Error saving product.",
+            "errors.deleteProduct": "Could not delete the product.",
+            "errors.loadProductDetail": "Could not load product detail.",
+            "errors.loadAvailableShelves": "Could not load available shelves.",
+            "errors.selectShelf": "Select a shelf.",
+            "errors.createInventoryItem": "Could not create InventoryItem.",
+            "errors.invalidEmail": "Invalid email.",
+            "errors.requiredDate": "Date is required.",
+            "errors.selectCategory": "Select a category.",
+            "errors.selectSkill": "Select at least one skill.",
+            "errors.invalidUsername": "Invalid username.",
+            "errors.minPassword": "Password must be at least 8 characters.",
+            "errors.selectStore": "Select a store.",
+            "errors.saveEmployee": "Error saving employee.",
+            "errors.deleteEmployee": "Could not delete the employee.",
+            "errors.saveStore": "Error saving store.",
+            "errors.deleteStore": "Could not delete the store.",
+            "errors.countryCode": "Country code must have 2 letters.",
+            "errors.temperatureRange": "Temperature must be between -50 and 50.",
+            "errors.humidityRange": "Humidity must be between 0 and 100.",
+            "errors.invalidUrl": "Invalid URL.",
+            "errors.invalidImageUrl": "Invalid image URL.",
+            "errors.longitudeRange": "Longitude must be between -180 and 180.",
+            "errors.latitudeRange": "Latitude must be between -90 and 90.",
+            "errors.saveShelf": "Could not save the shelf.",
+            "errors.maxCapacityPositive": "Capacity must be an integer greater than 0.",
+            "errors.loadAvailableProducts": "Could not load available products.",
+            "errors.selectProduct": "Select a product.",
+            "errors.nonNegativeInventory": "Stock and shelf values must be integers >= 0.",
+            "errors.loadStoreDetail": "Could not load store detail.",
+            "errors.registerPurchase": "Could not register the purchase.",
+            "confirm.deleteProduct": "Delete this product?",
+            "confirm.deleteEmployee": "Delete this employee?",
+            "confirm.deleteStore": "Delete this store?",
+            "success.productUpdated": "Product updated",
+            "success.productCreated": "Product created",
+            "success.productDeleted": "Product deleted",
+            "success.employeeUpdated": "Employee updated",
+            "success.employeeCreated": "Employee created",
+            "success.employeeDeleted": "Employee deleted",
+            "success.storeUpdated": "Store updated",
+            "success.storeCreated": "Store created",
+            "success.storeDeleted": "Store deleted",
+            "success.shelfUpdated": "Shelf updated",
+            "success.shelfCreated": "Shelf created",
+            "success.inventoryItemCreated": "InventoryItem created",
+            "success.purchaseRegistered": "Purchase registered",
+            "status.connected": "Connected",
+            "status.disconnected": "Disconnected",
+            "notifications.title": "Real-Time Notifications",
+            "notifications.clients": "Clients",
+            "notifications.events": "Events",
+            "notifications.lastUpdate": "Last update",
+            "notifications.filter.all": "All",
+            "notifications.filter.price": "Price",
+            "notifications.filter.stock": "Stock",
+            "notifications.filter.clear": "Clear",
+            "notifications.empty": "Waiting for Orion notifications...",
+            "notifications.reconnect": "Reconnect",
+            "notifications.entity": "Entity",
+            "notif.connection.title": "Connection established",
+            "notif.connection.message": "Connected to notifications server",
+            "notif.disconnected.title": "Disconnected",
+            "notif.disconnected.message": "Connection to the server was lost",
+            "notif.connection.error": "Connection error",
+            "notif.price.title": "Price Changed",
+            "notif.price.message": "{{product}}: EUR {{price}}",
+            "notif.stock.title": "Low Stock",
+            "notif.stock.message": "Item {{entityId}}: Stock={{currentStock}} (Shelf={{shelfStock}})",
+            "footer.issue": "XDEI Practice 2"
+        }
+    };
+
+    const DEFAULT_LANG = "es";
+
+    function getLanguage() {
+        const saved = localStorage.getItem("lang");
+        if (saved && DICT[saved]) return saved;
+        const htmlLang = document.documentElement.lang;
+        if (htmlLang && DICT[htmlLang]) return htmlLang;
+        return DEFAULT_LANG;
+    }
+
+    function interpolate(text, params) {
+        return Object.entries(params || {}).reduce((result, [key, value]) => {
+            return result.replaceAll(`{{${key}}}`, String(value));
+        }, text);
+    }
+
+    const VALUE_MAPS = {
+        productName: {
+            es: {
+                Apples: "Manzanas",
+                Bananas: "Platanos",
+                Coconuts: "Cocos",
+                Melons: "Melones",
+                "Kiwi Fruits": "Kiwis",
+                Strawberries: "Fresas",
+                Raspberries: "Frambuesas",
+                Pineapples: "Pina",
+                Oranges: "Naranjas",
+                Grapes: "Uvas",
+            },
+        },
+        employeeCategory: {
+            es: {
+                Manager: "Gerente",
+                Warehouse: "Almacen",
+                Sales: "Ventas",
+                CustomerSupport: "Atencion al cliente",
+            },
+        },
+        employeeSkill: {
+            es: {
+                MachineryDriving: "Conduccion de maquinaria",
+                WritingReports: "Redaccion de informes",
+                CustomerRelationships: "Relaciones con clientes",
+            },
+        },
+        shelfName: {
+            es: {
+                Corner: "Esquina",
+                Wall: "Pared",
+                Front: "Frontal",
+            },
+        },
+    };
+
+    function translateDomainValue(kind, value) {
+        const lang = getLanguage();
+        if (!value) return value;
+
+        // Source data values are stored in English; only transform for Spanish UI.
+        if (lang !== "es") return value;
+
+        if (kind === "shelfName") {
+            return String(value)
+                .replace(/\bCorner\b/g, "Esquina")
+                .replace(/\bWall\b/g, "Pared")
+                .replace(/\bFront\b/g, "Frontal");
+        }
+
+        const map = VALUE_MAPS[kind]?.[lang] || {};
+        return map[String(value)] || value;
+    }
+
+    function t(key, params) {
+        const lang = getLanguage();
+        const value = DICT[lang][key] || DICT[DEFAULT_LANG][key] || key;
+        return interpolate(value, params);
+    }
+
+    function applyTranslations() {
+        document.documentElement.lang = getLanguage();
+
+        document.querySelectorAll("[data-i18n]").forEach((node) => {
+            node.textContent = t(node.dataset.i18n);
+        });
+
+        document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
+            node.placeholder = t(node.dataset.i18nPlaceholder);
+        });
+
+        document.querySelectorAll("[data-i18n-title]").forEach((node) => {
+            node.title = t(node.dataset.i18nTitle);
+        });
+
+        const langBtn = document.getElementById("language-toggle");
+        if (langBtn) {
+            const current = getLanguage();
+            const flag = document.createElement("span");
+            flag.className = `flag-icon ${current === "es" ? "flag-es" : "flag-gb"}`;
+            flag.setAttribute("aria-hidden", "true");
+            const label = `${t("language.toggle")}: ${t(`language.${current}`)}`;
+            langBtn.replaceChildren(flag);
+            langBtn.title = label;
+            langBtn.setAttribute("aria-label", label);
+        }
+
+        const themeBtn = document.getElementById("theme-toggle");
+        if (themeBtn) {
+            const theme = document.body.dataset.theme || "light";
+            const themeLabel = theme === "dark" ? t("theme.dark") : t("theme.light");
+            themeBtn.textContent = theme === "dark" ? "🌙" : "☀️";
+            themeBtn.title = `${t("theme.toggle")}: ${themeLabel}`;
+            themeBtn.setAttribute("aria-label", `${t("theme.toggle")}: ${themeLabel}`);
+        }
+    }
+
+    function setLanguage(lang) {
+        if (!DICT[lang]) return;
+        localStorage.setItem("lang", lang);
+        applyTranslations();
+        document.dispatchEvent(new CustomEvent("app:language-changed", { detail: { lang } }));
+    }
+
+    function toggleLanguage() {
+        const next = getLanguage() === "es" ? "en" : "es";
+        setLanguage(next);
+    }
+
+    function formatTime(date) {
+        const lang = getLanguage();
+        return new Date(date).toLocaleTimeString(lang === "es" ? "es-ES" : "en-US");
+    }
+
+    window.appI18n = {
+        t,
+        getLanguage,
+        setLanguage,
+        toggleLanguage,
+        applyTranslations,
+        formatTime,
+        translateDomainValue
+    };
+})();

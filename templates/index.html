@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventario FIWARE - Home, Products, Employees</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="{{ url_for('static', filename='js/vendor/three.min.js') }}"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <h1 data-i18n="app.title">Sistema FIWARE Inventario</h1>
+            <div class="header-actions">
+                <button id="language-toggle" class="chip-btn icon-toggle-btn" type="button" title="Idioma" aria-label="Idioma">🇪🇸</button>
+                <button id="theme-toggle" class="chip-btn icon-toggle-btn" type="button" title="Tema" aria-label="Tema">☀️</button>
+                <div class="connection-status">
+                    <span id="status-icon" class="status-icon disconnected"></span>
+                    <span id="status-text" class="status-text" data-i18n="status.disconnected">Desconectado</span>
+                </div>
+            </div>
+        </header>
+
+        <nav class="top-nav">
+            <a class="nav-link active" data-route="home" href="#home" data-i18n="nav.home">Home</a>
+            <a class="nav-link" data-route="products" href="#products" data-i18n="nav.products">Products</a>
+            <a class="nav-link" data-route="stores" href="#stores" data-i18n="nav.stores">Stores</a>
+            <a class="nav-link" data-route="store-map" href="#store-map" data-i18n="nav.storeMap">Stores Map</a>
+            <a class="nav-link" data-route="employees" href="#employees" data-i18n="nav.employees">Employees</a>
+        </nav>
+
+        <div id="global-alert" class="global-alert hidden"></div>
+
+        <main class="layout-grid">
+            <section class="main-area">
+                <section id="view-home" class="view active-view">
+                    <div class="stats-panel">
+                        <div class="stat-card">
+                            <span class="stat-label" data-i18n="home.kpi.products">Products</span>
+                            <span id="kpi-products" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label" data-i18n="home.kpi.employees">Employees</span>
+                            <span id="kpi-employees" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label" data-i18n="home.kpi.stores">Stores</span>
+                            <span id="kpi-stores" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label" data-i18n="home.kpi.inventoryItems">Inventory Items</span>
+                            <span id="kpi-inventoryitem" class="stat-value">0</span>
+                        </div>
+                    </div>
+
+                    <article class="panel">
+                        <h2 data-i18n="home.umlTitle">Diagrama UML</h2>
+                        <div class="uml-wrap">
+                            <div id="uml-mermaid"></div>
+                        </div>
+                    </article>
+                </section>
+
+                <section id="view-products" class="view">
+                    <div class="toolbar">
+                        <h2 data-i18n="products.title">Products</h2>
+                        <div class="toolbar-actions">
+                            <input id="products-search" type="search" placeholder="Buscar por nombre" data-i18n-placeholder="products.searchPlaceholder">
+                            <button id="btn-new-product" class="primary-btn" type="button" data-i18n="products.add">Add Product</button>
+                        </div>
+                    </div>
+
+                    <article class="panel">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="table.image">Image</th>
+                                        <th data-i18n="table.name">Name</th>
+                                        <th data-i18n="table.color">Color</th>
+                                        <th data-i18n="table.size">Size</th>
+                                        <th data-i18n="table.price">Price</th>
+                                        <th data-i18n="table.actions">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="products-tbody"></tbody>
+                            </table>
+                        </div>
+                        <p id="products-empty" class="empty-state" data-i18n="products.empty">No products available.</p>
+                    </article>
+                </section>
+
+                <section id="view-product-detail" class="view">
+                    <div class="toolbar">
+                        <h2 id="product-detail-title" data-i18n="productDetail.title">Product Detail</h2>
+                        <div class="toolbar-actions">
+                            <button id="product-detail-back" class="secondary-btn" type="button" data-i18n="productDetail.back">Back to Products</button>
+                        </div>
+                    </div>
+
+                    <article class="panel">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="productDetail.storeShelf">Store / Shelf</th>
+                                        <th data-i18n="productDetail.stockCount">Stock Count</th>
+                                        <th data-i18n="productDetail.shelfCount">Shelf Count</th>
+                                        <th data-i18n="table.actions">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="product-detail-tbody"></tbody>
+                            </table>
+                        </div>
+                        <p id="product-detail-empty" class="empty-state" data-i18n="productDetail.empty">No inventory items found for this product.</p>
+                    </article>
+                </section>
+
+                <section id="view-employees" class="view">
+                    <div class="toolbar">
+                        <h2 data-i18n="employees.title">Employees</h2>
+                        <div class="toolbar-actions">
+                            <input id="employees-search" type="search" placeholder="Buscar por nombre/email" data-i18n-placeholder="employees.searchPlaceholder">
+                            <button id="btn-new-employee" class="primary-btn" type="button" data-i18n="employees.add">Add Employee</button>
+                        </div>
+                    </div>
+
+                    <article class="panel">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="table.photo">Photo</th>
+                                        <th data-i18n="table.name">Name</th>
+                                        <th data-i18n="table.email">Email</th>
+                                        <th data-i18n="table.category">Category</th>
+                                        <th data-i18n="table.skills">Skills</th>
+                                        <th data-i18n="table.username">Username</th>
+                                        <th data-i18n="table.store">Store</th>
+                                        <th data-i18n="table.contract">Contract</th>
+                                        <th data-i18n="table.actions">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="employees-tbody"></tbody>
+                            </table>
+                        </div>
+                        <p id="employees-empty" class="empty-state" data-i18n="employees.empty">No employees available.</p>
+                    </article>
+                </section>
+
+                <section id="view-stores" class="view">
+                    <div class="toolbar">
+                        <h2 data-i18n="stores.title">Stores</h2>
+                        <div class="toolbar-actions">
+                            <input id="stores-search" type="search" placeholder="Buscar por nombre/pais" data-i18n-placeholder="stores.searchPlaceholder">
+                            <button id="btn-new-store" class="primary-btn" type="button" data-i18n="stores.add">Add Store</button>
+                        </div>
+                    </div>
+
+                    <article class="panel">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="table.image">Image</th>
+                                        <th data-i18n="table.name">Name</th>
+                                        <th data-i18n="table.country">Country</th>
+                                        <th data-i18n="storeDetail.temperature">Temperature</th>
+                                        <th data-i18n="storeDetail.humidity">Humidity</th>
+                                        <th data-i18n="table.actions">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stores-tbody"></tbody>
+                            </table>
+                        </div>
+                        <p id="stores-empty" class="empty-state" data-i18n="stores.empty">No stores available.</p>
+                    </article>
+                </section>
+
+                <section id="view-store-detail" class="view">
+                    <div class="toolbar">
+                        <h2 id="store-detail-title" data-i18n="storeDetail.title">Store Detail</h2>
+                        <div class="toolbar-actions">
+                            <button id="store-detail-back" class="secondary-btn" type="button" data-i18n="storeDetail.back">Back to Stores</button>
+                            <button id="btn-add-shelf" class="primary-btn" type="button" data-i18n="storeDetail.addShelf">Add Shelf</button>
+                        </div>
+                    </div>
+
+                    <article class="panel">
+                        <div class="store-metrics" id="store-detail-metrics">
+                            <span class="metric-chip" id="store-detail-temp-chip">
+                                <i id="store-detail-temp-icon" class="fa-solid fa-temperature-half"></i>
+                                <span data-i18n="storeDetail.temperature">Temperature</span>: <strong id="store-detail-temp">-</strong>
+                            </span>
+                            <span class="metric-chip" id="store-detail-humidity-chip">
+                                <i id="store-detail-humidity-icon" class="fa-solid fa-droplet"></i>
+                                <span data-i18n="storeDetail.humidity">Humidity</span>: <strong id="store-detail-humidity">-</strong>
+                            </span>
+                        </div>
+
+                        <div id="store-detail-map" class="store-map-canvas" aria-label="Store location map"></div>
+                    </article>
+
+                    <article class="panel">
+                        <div class="toolbar three-toolbar">
+                            <h4 data-i18n="three.title">Immersive Walkthrough</h4>
+                            <div class="toolbar-actions">
+                                <button id="btn-3d-reset" class="secondary-btn" type="button" data-i18n="three.reset">Reset Camera</button>
+                                <button id="btn-3d-focus-next" class="secondary-btn" type="button" data-i18n="three.focusNext">Focus Next Shelf</button>
+                            </div>
+                        </div>
+                        <div id="store-3d-canvas" class="store-3d-canvas" aria-label="Store immersive walkthrough"></div>
+                        <p id="store-3d-status" class="three-status" data-i18n="three.status">Move: drag pointer. Zoom: mouse wheel / touch pad.</p>
+                        <div id="store-3d-legend" class="three-legend"></div>
+                    </article>
+
+                    <article class="panel">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="storeDetail.shelfProduct">Shelf / Product</th>
+                                        <th data-i18n="table.image">Image</th>
+                                        <th data-i18n="table.price">Price</th>
+                                        <th data-i18n="table.size">Size</th>
+                                        <th data-i18n="table.color">Color</th>
+                                        <th data-i18n="productDetail.stockCount">Stock Count</th>
+                                        <th data-i18n="productDetail.shelfCount">Shelf Count</th>
+                                        <th data-i18n="table.actions">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="store-detail-tbody"></tbody>
+                            </table>
+                        </div>
+                        <p id="store-detail-empty" class="empty-state" data-i18n="storeDetail.empty">No inventory items found for this store.</p>
+                    </article>
+
+                    <article class="panel">
+                        <div class="tweets-panel">
+                            <h4 data-i18n="storeDetail.tweets">Tweets</h4>
+                            <ul id="store-detail-tweets"></ul>
+                        </div>
+                    </article>
+
+                    <article class="panel">
+                        <h4 data-i18n="storeDetail.notifications">Store Notifications</h4>
+                        <div id="store-detail-notifications" class="notifications-list"></div>
+                    </article>
+                </section>
+
+                <section id="view-store-map" class="view">
+                    <div class="toolbar">
+                        <h2 data-i18n="storeMap.title">Stores Map</h2>
+                    </div>
+
+                    <article class="panel">
+                        <div id="stores-map" class="store-map-canvas store-map-global" aria-label="All stores map"></div>
+                        <p class="empty-state" id="stores-map-empty" data-i18n="storeMap.empty">Stores with coordinates will appear here.</p>
+                    </article>
+                </section>
+            </section>
+
+            <aside class="notifications-panel">
+                <h3 data-i18n="notifications.title">Notificaciones en Tiempo Real</h3>
+
+                <div class="mini-stats">
+                    <span><span data-i18n="notifications.clients">Clientes</span>: <strong id="client-count">0</strong></span>
+                    <span><span data-i18n="notifications.events">Eventos</span>: <strong id="notification-count">0</strong></span>
+                    <span><span data-i18n="notifications.lastUpdate">Ult. update</span>: <strong id="last-update">--:--:--</strong></span>
+                </div>
+
+                <div class="filter-controls">
+                    <button id="filter-all" class="filter-btn active" type="button" data-i18n="notifications.filter.all">Todas</button>
+                    <button id="filter-price" class="filter-btn" type="button" data-i18n="notifications.filter.price">Precio</button>
+                    <button id="filter-stock" class="filter-btn" type="button" data-i18n="notifications.filter.stock">Stock</button>
+                    <button id="clear-notifications" class="filter-btn clear-btn" type="button" data-i18n="notifications.filter.clear">Limpiar</button>
+                </div>
+
+                <div id="empty-state" class="empty-state">
+                    <span data-i18n="notifications.empty">Esperando notificaciones de Orion...</span>
+                </div>
+                <div id="notifications-container" class="notifications-list"></div>
+
+                <div class="debug-panel">
+                    <p><strong data-i18n="debug.client">Client:</strong> <span id="client-id">--</span></p>
+                    <p><strong data-i18n="debug.server">Server:</strong> <span id="server-time">--</span></p>
+                    <p><strong data-i18n="debug.ws">WS:</strong> <span id="websocket-status">--</span></p>
+                    <button id="reconnect-btn" class="chip-btn" type="button" data-i18n="notifications.reconnect">Reconectar</button>
+                </div>
+            </aside>
+        </main>
+
+        <footer class="footer">
+            <p data-i18n="footer.issue">XDEI Práctica 2</p>
+        </footer>
+    </div>
+
+    <dialog id="product-modal" class="modal">
+        <form id="product-form" method="dialog" novalidate>
+            <h3 id="product-form-title" data-i18n="productForm.newTitle">New Product</h3>
+            <input id="product-id" name="id" type="hidden">
+
+            <label><span data-i18n="form.name">Name</span>
+                <input id="product-name" name="name" type="text" required minlength="2">
+                <span class="field-error" data-error-for="product-name"></span>
+            </label>
+
+            <label><span data-i18n="form.color">Color</span>
+                <div class="row-inline">
+                    <input id="product-color" name="color" type="color" value="#FF0000" required>
+                    <input id="product-color-text" name="colorText" type="text" pattern="^#[0-9A-Fa-f]{6}$" value="#FF0000" required>
+                </div>
+                <span class="field-error" data-error-for="product-color-text"></span>
+            </label>
+
+            <label><span data-i18n="form.size">Size</span>
+                <select id="product-size" name="size" required>
+                    <option value="" data-i18n="form.selectSize">Select size</option>
+                    <option value="XS">XS</option>
+                    <option value="S">S</option>
+                    <option value="M">M</option>
+                    <option value="L">L</option>
+                    <option value="XL">XL</option>
+                </select>
+                <span class="field-error" data-error-for="product-size"></span>
+            </label>
+
+            <label><span data-i18n="form.price">Price</span>
+                <input id="product-price" name="price" type="number" min="1" step="1" required>
+                <span class="field-error" data-error-for="product-price"></span>
+            </label>
+
+            <label><span data-i18n="form.imageUrl">Image URL</span>
+                <input id="product-image" name="image" type="url" placeholder="https://...">
+                <span class="field-error" data-error-for="product-image"></span>
+            </label>
+
+            <div class="modal-actions">
+                <button type="button" class="secondary-btn" data-close-modal="product-modal">Cancel</button>
+                <button id="product-submit" type="submit" class="primary-btn">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="employee-modal" class="modal">
+        <form id="employee-form" method="dialog" novalidate>
+            <h3 id="employee-form-title" data-i18n="employeeForm.newTitle">New Employee</h3>
+            <input id="employee-id" name="id" type="hidden">
+
+            <label><span data-i18n="form.name">Name</span>
+                <input id="employee-name" name="name" type="text" required minlength="2">
+                <span class="field-error" data-error-for="employee-name"></span>
+            </label>
+
+            <label><span data-i18n="form.email">Email</span>
+                <input id="employee-email" name="email" type="email" required>
+                <span class="field-error" data-error-for="employee-email"></span>
+            </label>
+
+            <label><span data-i18n="form.dateOfContract">Date of contract</span>
+                <input id="employee-date" name="dateOfContract" type="date" required>
+                <span class="field-error" data-error-for="employee-date"></span>
+            </label>
+
+            <label><span data-i18n="form.category">Category</span>
+                <select id="employee-category" name="category" required>
+                    <option value="" data-i18n="form.selectCategory">Select category</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Warehouse">Warehouse</option>
+                    <option value="Sales">Sales</option>
+                    <option value="CustomerSupport">CustomerSupport</option>
+                </select>
+                <span class="field-error" data-error-for="employee-category"></span>
+            </label>
+
+            <fieldset>
+                <legend data-i18n="form.skills">Skills</legend>
+                <label><input type="checkbox" name="skills" value="MachineryDriving"> <span data-i18n="skill.machinery">MachineryDriving</span></label>
+                <label><input type="checkbox" name="skills" value="WritingReports"> <span data-i18n="skill.reports">WritingReports</span></label>
+                <label><input type="checkbox" name="skills" value="CustomerRelationships"> <span data-i18n="skill.customers">CustomerRelationships</span></label>
+                <span class="field-error" data-error-for="employee-skills"></span>
+            </fieldset>
+
+            <label><span data-i18n="form.username">Username</span>
+                <input id="employee-username" name="username" type="text" required minlength="3" pattern="^[A-Za-z0-9_]+$">
+                <span class="field-error" data-error-for="employee-username"></span>
+            </label>
+
+            <label><span data-i18n="form.password">Password</span>
+                <input id="employee-password" name="password" type="password" minlength="8">
+                <span class="field-error" data-error-for="employee-password"></span>
+            </label>
+
+            <label><span data-i18n="form.store">Store</span>
+                <select id="employee-store" name="refStore" required></select>
+                <span class="field-error" data-error-for="employee-store"></span>
+            </label>
+
+            <label><span data-i18n="form.imageUrl">Image URL</span>
+                <input id="employee-image" name="image" type="url" placeholder="https://...">
+                <span class="field-error" data-error-for="employee-image"></span>
+            </label>
+
+            <div class="modal-actions">
+                <button type="button" class="secondary-btn" data-close-modal="employee-modal">Cancel</button>
+                <button id="employee-submit" type="submit" class="primary-btn">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="store-modal" class="modal">
+        <form id="store-form" method="dialog" novalidate>
+            <h3 id="store-form-title" data-i18n="storeForm.newTitle">New Store</h3>
+            <input id="store-id" name="id" type="hidden">
+
+            <label><span data-i18n="form.name">Name</span>
+                <input id="store-name" name="name" type="text" required minlength="2">
+                <span class="field-error" data-error-for="store-name"></span>
+            </label>
+
+            <label><span data-i18n="form.countryCode">Country code</span>
+                <input id="store-countryCode" name="countryCode" type="text" required minlength="2" maxlength="2" pattern="^[A-Za-z]{2}$">
+                <span class="field-error" data-error-for="store-countryCode"></span>
+            </label>
+
+            <label><span data-i18n="storeDetail.temperature">Temperature</span>
+                <input id="store-temperature" name="temperature" type="number" min="-50" max="50" step="0.1" required>
+                <span class="field-error" data-error-for="store-temperature"></span>
+            </label>
+
+            <label><span data-i18n="storeDetail.humidity">Relative humidity</span>
+                <input id="store-relativeHumidity" name="relativeHumidity" type="number" min="0" max="100" step="0.1" required>
+                <span class="field-error" data-error-for="store-relativeHumidity"></span>
+            </label>
+
+            <div class="row-inline row-inline-double">
+                <label><span data-i18n="form.longitude">Longitude</span>
+                    <input id="store-longitude" name="longitude" type="number" min="-180" max="180" step="0.000001" required>
+                    <span class="field-error" data-error-for="store-longitude"></span>
+                </label>
+                <label><span data-i18n="form.latitude">Latitude</span>
+                    <input id="store-latitude" name="latitude" type="number" min="-90" max="90" step="0.000001" required>
+                    <span class="field-error" data-error-for="store-latitude"></span>
+                </label>
+            </div>
+
+            <label><span data-i18n="form.telephone">Telephone</span>
+                <input id="store-telephone" name="telephone" type="tel">
+                <span class="field-error" data-error-for="store-telephone"></span>
+            </label>
+
+            <label><span data-i18n="form.url">URL</span>
+                <input id="store-url" name="url" type="url" placeholder="https://...">
+                <span class="field-error" data-error-for="store-url"></span>
+            </label>
+
+            <label><span data-i18n="form.capacity">Capacity</span>
+                <input id="store-capacity" name="capacity" type="number" min="0" step="1">
+                <span class="field-error" data-error-for="store-capacity"></span>
+            </label>
+
+            <label><span data-i18n="form.description">Description</span>
+                <textarea id="store-description" name="description" rows="3"></textarea>
+                <span class="field-error" data-error-for="store-description"></span>
+            </label>
+
+            <label><span data-i18n="form.imageUrl">Image URL</span>
+                <input id="store-image" name="image" type="url" placeholder="https://...">
+                <span class="field-error" data-error-for="store-image"></span>
+            </label>
+
+            <div class="modal-actions">
+                <button type="button" class="secondary-btn" data-close-modal="store-modal">Cancel</button>
+                <button id="store-submit" type="submit" class="primary-btn">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="shelf-modal" class="modal">
+        <form id="shelf-form" method="dialog" novalidate>
+            <h3 id="shelf-form-title" data-i18n="shelfForm.title">Shelf</h3>
+            <input id="shelf-id" type="hidden">
+
+            <label><span data-i18n="form.name">Name</span>
+                <input id="shelf-name" type="text" required minlength="2">
+                <span class="field-error" data-error-for="shelf-name"></span>
+            </label>
+
+            <label><span data-i18n="shelfForm.maxCapacity">Max Capacity</span>
+                <input id="shelf-max-capacity" type="number" min="1" step="1" required>
+                <span class="field-error" data-error-for="shelf-max-capacity"></span>
+            </label>
+
+            <div class="modal-actions">
+                <button type="button" class="secondary-btn" data-close-modal="shelf-modal">Cancel</button>
+                <button id="shelf-submit" type="submit" class="primary-btn">Save</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="store-inventory-modal" class="modal">
+        <form id="store-inventory-form" method="dialog" novalidate>
+            <h3 data-i18n="inventory.addToShelfTitle">Add InventoryItem to Shelf</h3>
+            <input id="store-inventory-shelf-id" type="hidden">
+
+            <label><span data-i18n="form.shelf">Shelf</span>
+                <input id="store-inventory-shelf-name" type="text" readonly>
+            </label>
+
+            <label><span data-i18n="form.product">Product</span>
+                <select id="store-inventory-product-select" required></select>
+                <span class="field-error" id="store-inventory-product-error"></span>
+            </label>
+
+            <div class="row-inline">
+                <label><span data-i18n="form.shelfCount">Shelf Count</span>
+                    <input id="store-inventory-shelf-count" type="number" min="0" step="1" value="1" required>
+                </label>
+                <label><span data-i18n="form.stockCount">Stock Count</span>
+                    <input id="store-inventory-stock-count" type="number" min="0" step="1" value="1" required>
+                </label>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="secondary-btn" data-close-modal="store-inventory-modal">Cancel</button>
+                <button id="store-inventory-submit" type="submit" class="primary-btn">Add</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="inventory-item-modal" class="modal">
+        <form id="inventory-item-form" method="dialog" novalidate>
+            <h3 data-i18n="inventory.addToShelfTitle">Add InventoryItem to Shelf</h3>
+            <input id="inventory-product-id" type="hidden">
+            <input id="inventory-store-id" type="hidden">
+
+            <label><span data-i18n="form.store">Store</span>
+                <input id="inventory-store-name" type="text" readonly>
+            </label>
+
+            <label><span data-i18n="form.shelf">Shelf</span>
+                <select id="inventory-shelf-select" required></select>
+                <span class="field-error" id="inventory-shelf-error"></span>
+            </label>
+
+            <div class="row-inline">
+                <label><span data-i18n="form.shelfCount">Shelf Count</span>
+                    <input id="inventory-shelf-count" type="number" min="0" step="1" value="1" required>
+                </label>
+                <label><span data-i18n="form.stockCount">Stock Count</span>
+                    <input id="inventory-stock-count" type="number" min="0" step="1" value="1" required>
+                </label>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="secondary-btn" data-close-modal="inventory-item-modal">Cancel</button>
+                <button id="inventory-item-submit" type="submit" class="primary-btn">Add</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/socket-client.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/router.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/products.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/employees.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/store-3d.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/stores.js') }}"></script>
+</body>
+</html>
