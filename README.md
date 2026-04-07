@@ -63,7 +63,7 @@ Sistema completo de gestión de tiendas retail y productos integrado con FIWARE 
 
 ```bash
 cd /home/gonza/udc/xdei/P2
-git clone <repo-url>
+git clone https://github.com/pablorubal/practica2-xdei.git
 cd practica2-xdei
 ```
 

@@ -44,11 +44,6 @@ pip-delete-this-directory.txt
 .Trashes
 Thumbs.db
 
-### Environment & Configuration ###
-.env
-.env.local
-.env.*.local
-.python-version
 
 ### Logs & Temporals ###
 *.log
